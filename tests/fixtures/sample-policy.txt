@@ -1,0 +1,6 @@
+Company Financial Authority Policy
+
+Authorized roles for payment.release: regional_manager, finance_director, cfo.
+The regional_manager may approve payment.release up to 100,000 EUR.
+The finance_director may approve payment.release up to 500,000 EUR.
+Any payment.release above 50,000 EUR must be accompanied by invoice and purchase_order.

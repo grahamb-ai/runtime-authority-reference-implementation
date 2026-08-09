@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Authority Runtime Admissibility Console</title>
+
+<!-- React + Babel from cdnjs (works when opened directly as a file) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+
+
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="root"></div>
+
+<!-- App logic is inline: Babel-in-browser needs to fetch() external scripts,
+     and fetch() to a local file is blocked under file://. Keeping this inline
+     means double-clicking index.html works with no local server needed. -->
+<script type="text/babel">
+const { useState, useRef, useMemo } = React;
+
+/* ============================================================================
+   Presets — quick-fill values for the "Compose a proposed action" form.
+   ========================================================================== */
+const PRESETS = [
+  { label: "SAP Payment · £250,000", action: "payment.release", target: "SAP_PAYMENT_RELEASE", role: "regional_manager", amount: 250000, currency: "GBP", evidence: ["invoice", "purchase_order"] },
+  { label: "Within limit", action: "payment.release", target: "SAP_PAYMENT_RELEASE", role: "regional_manager", amount: 40000, currency: "EUR", evidence: ["invoice"] },
+  { label: "Missing evidence", action: "payment.release", target: "SAP_PAYMENT_RELEASE", role: "regional_manager", amount: 80000, currency: "EUR", evidence: ["invoice"] },
+  { label: "Unauthorized role", action: "payment.release", target: "SAP_PAYMENT_RELEASE", role: "intern", amount: 10000, currency: "EUR", evidence: [] },
+  { label: "Vendor onboard · over cap", action: "vendor.onboard", target: "VENDOR_MASTER", role: "procurement_lead", amount: 30000, currency: "EUR", evidence: ["due_diligence_report", "signed_contract"] },
+];
+
+const CHECK_LABEL = { role_authorization: "Role authorization", delegation_validity: "Delegation validity", amount_within_limit: "Delegation threshold", evidence_sufficiency: "Evidence sufficiency" };
+const CHECK_FAIL_STATUS = { role_authorization: "UNAUTHORIZED", delegation_validity: "EXPIRED", amount_within_limit: "EXCEEDED", evidence_sufficiency: "MISSING" };
+
+/* JSON syntax highlighter — used to render the bind record */
+function highlight(obj) {
+  const json = JSON.stringify(obj, null, 2);
+  return json
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+      let cls = "jn";
+      if (/^"/.test(match)) cls = /:$/.test(match) ? "jk" : "js";
+      else if (/true|false|null/.test(match)) cls = "jb";
+      return `<span class="${cls}">${match}</span>`;
+    });
+}
+
+/* ============================================================================
+   Brand mark
+   ========================================================================== */
+function Mark() {
+  return (
+    <svg className="brand-mark" viewBox="0 0 26 26" fill="none">
+      <rect x="1.5" y="1.5" width="23" height="23" rx="5" stroke="#5286F5" strokeWidth="1.4" />
+      <path d="M13 4.5v17" stroke="#5286F5" strokeWidth="1.4" opacity="0.55" />
+      <circle cx="13" cy="13" r="3.2" fill="#5286F5" />
+    </svg>
+  );
+}
+
+/* ============================================================================
+   App — talks only to the real backend (no in-browser demo engine).
+   ========================================================================== */
+function App() {
+  const [apiBase, setApiBase] = useState("http://localhost:8000");
+  const [stage, setStage] = useState(1);
+
+  const [fileName, setFileName] = useState("");
+  const [policyText, setPolicyText] = useState("");
+  const [rules, setRules] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [showPaste, setShowPaste] = useState(false);
+  const [over, setOver] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  // form
+  const [action, setAction] = useState("payment.release");
+  const [target, setTarget] = useState("SAP_PAYMENT_RELEASE");
+  const [role, setRole] = useState("regional_manager");
+  const [amount, setAmount] = useState("250000");
+  const [currency, setCurrency] = useState("GBP");
+  const [evidence, setEvidence] = useState(["invoice", "purchase_order"]);
+  const [evInput, setEvInput] = useState("");
+
+  const [result, setResult] = useState(null);
+
+  const fileRef = useRef(null);
+
+  const actionsFound = useMemo(() => [...new Set(rules.map((r) => r.action).filter((a) => a && a !== "*"))], [rules]);
+  const rolesFound = useMemo(() => [...new Set(rules.filter((r) => r.attribute === "authorized_role").map((r) => r.value))], [rules]);
+
+  /* ---- policy binding: always goes to the backend ---- */
+  const handleFile = async (file) => {
+    if (!file) return;
+    setError(""); setFileName(file.name); setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${apiBase}/api/v1/specs/upload`, { method: "POST", body: fd });
+      if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`);
+      const data = await res.json();
+      setRules(data.rules || []);
+      setSummary({ authority: data.authority_rules, admissibility: data.admissibility_rules, total: data.total_rules });
+    } catch (e) {
+      setError(String(e.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const bindPasted = () => {
+    // Send pasted text as a .txt file, same endpoint as a real upload.
+    const blob = new File([policyText], "pasted-policy.txt", { type: "text/plain" });
+    handleFile(blob);
+  };
+
+  /* ---- evaluation ---- */
+  const applyPreset = (p) => {
+    setAction(p.action); setTarget(p.target); setRole(p.role);
+    setAmount(String(p.amount)); setCurrency(p.currency); setEvidence(p.evidence);
+  };
+
+  const addEvidence = (val) => {
+    const t = val.trim().toLowerCase().replace(/,$/, "");
+    if (t && !evidence.includes(t)) setEvidence([...evidence, t]);
+    setEvInput("");
+  };
+
+  const buildEnvelope = () => ({
+    action, target,
+    requester: { id: "console-user", role },
+    // Delegation expiry has no supported source right now: it was never safe
+    // to accept from the client directly (self-declared dates can't be
+    // trusted), and the server-side registry that used to resolve it has been
+    // removed. delegation_validity is therefore dormant until a replacement
+    // exists. max_amount stays client-supplied — it can only tighten the
+    // ceiling, never loosen it, so it's safe by construction.
+    delegation: { granted_by: null, max_amount: null },
+    context: { amount: amount === "" ? null : Number(amount), currency },
+    evidence,
+  });
+
+  const resolve = async () => {
+    setError(""); setBusy(true); setResult(null);
+    try {
+      const res = await fetch(`${apiBase}/api/v1/orders/evaluate`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildEnvelope()),
+      });
+      if (!res.ok) throw new Error(`Evaluation failed (HTTP ${res.status})`);
+      setResult(await res.json());
+      setStage(3);
+    } catch (e) {
+      setError(String(e.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const downloadJSON = () => {
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `bind-record-${result.id.slice(0, 8)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+  const copyJSON = () => navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(result, null, 2));
+
+  const canProceed = rules.length > 0;
+
+  /* ---- render ---- */
+  return (
+    <React.Fragment>
+      {/* nav */}
+      <div className="nav">
+        <div className="wrap nav-inner">
+          <div className="brand">
+            <Mark />
+            <div>
+              <span className="brand-name">AUTHORITY<b>·</b>RUNTIME</span>
+              <span className="brand-tag"> admissibility console</span>
+            </div>
+          </div>
+          <div className="nav-right">
+            <div className="api-field">
+              <label>API</label>
+              <input className="api-input" value={apiBase} onChange={(e) => setApiBase(e.target.value)} spellCheck="false" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* hero */}
+      <div className="hero">
+        <div className="wrap">
+          <div className="eyebrow">Independent runtime authority · pre-execution control</div>
+          <h1>Authority must exist at execution.</h1>
+          <p>Approval proves the past. This console resolves whether a proposed action is still <em>admissible</em> at the moment it becomes binding ; evaluated against the authority and admissibility rules extracted from your own policy documents.</p>
+          <div className="verdict-pills">
+            <span className="vp allow"><span className="dot"></span>ALLOW</span>
+            <span className="vp escalate"><span className="dot"></span>ESCALATE</span>
+            <span className="vp refuse"><span className="dot"></span>REFUSE</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="wrap">
+        {/* stepper */}
+        <div className="stepper">
+          <Step n="01" k="Bind" t="Policy binding" active={stage === 1} done={canProceed && stage > 1} onClick={() => setStage(1)} enabled />
+          <Step n="02" k="Compose" t="Proposed action" active={stage === 2} done={!!result && stage > 2} onClick={() => canProceed && setStage(2)} enabled={canProceed} />
+          <Step n="03" k="Resolve" t="Runtime decision" active={stage === 3} done={false} onClick={() => result && setStage(3)} enabled={!!result} />
+        </div>
+
+        {/* STAGE 1 */}
+        {stage === 1 && (
+          <div className="grid">
+            <div className="panel">
+              <h3>Bind policy documents</h3>
+              <p className="sub">Upload the policy that defines who may act and under what conditions. Rules are extracted deterministically by the backend.</p>
+
+              <div
+                className={"drop" + (over ? " over" : "")}
+                onClick={() => fileRef.current && fileRef.current.click()}
+                onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+                onDragLeave={() => setOver(false)}
+                onDrop={(e) => { e.preventDefault(); setOver(false); handleFile(e.dataTransfer.files[0]); }}
+              >
+                <div className="big">{fileName ? fileName : "Drop a policy file, or click to browse"}</div>
+                <div className="small">Sent to the backend for parsing</div>
+                <div className="fmt">PDF · DOCX · TXT</div>
+                <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" style={{ display: "none" }} onChange={(e) => handleFile(e.target.files[0])} />
+              </div>
+
+              <div className="rowsplit"><div className="ln"></div><span>or</span><div className="ln"></div></div>
+
+              <div className="actions" style={{ marginTop: 0 }}>
+                <button className="btn btn-ghost" onClick={() => setShowPaste(!showPaste)}>{showPaste ? "Hide paste box" : "Paste policy text"}</button>
+              </div>
+
+              {showPaste && (
+                <div style={{ marginTop: 14 }}>
+                  <textarea className="paste" placeholder="Paste policy text using recognizable phrasings…" value={policyText} onChange={(e) => setPolicyText(e.target.value)} />
+                  <div className="actions" style={{ marginTop: 10 }}>
+                    <button className="btn btn-primary" onClick={bindPasted} disabled={!policyText.trim()}>Bind policy</button>
+                  </div>
+                </div>
+              )}
+
+              {error && <div className="err">{error}</div>}
+              {busy && <div className="note">Working…</div>}
+            </div>
+
+            <div className="panel">
+              <h3>Extracted rules</h3>
+              <p className="sub">The authority and admissibility constraints now in force.</p>
+              {summary ? (
+                <React.Fragment>
+                  <div className="summary-row">
+                    <div className="stat auth"><div className="n">{summary.authority}</div><div className="l">Authority</div></div>
+                    <div className="stat adm"><div className="n">{summary.admissibility}</div><div className="l">Admissibility</div></div>
+                    <div className="stat"><div className="n">{summary.total}</div><div className="l">Total</div></div>
+                  </div>
+                  <div className="rules">
+                    {rules.map((r, i) => (
+                      <div className="rule" key={i}>
+                        <div className="rule-head">
+                          <span className={"badge " + (r.rule_type === "authority" ? "auth" : "adm")}>{r.rule_type === "authority" ? "AUTH" : "ADM"}</span>
+                          <span className="act">{r.action}</span>
+                        </div>
+                        <div className="rule-body">
+                          {r.attribute}{r.subject ? ` · ${r.subject}` : ""} <span className="v">{r.operator} {Array.isArray(r.value) ? r.value.join(", ") : r.value}</span>{r.threshold ? ` (above ${r.threshold})` : ""}
+                        </div>
+                        {r.source_excerpt && <div className="rule-src">“{r.source_excerpt}”</div>}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="actions">
+                    <button className="btn btn-primary" onClick={() => setStage(2)} disabled={!canProceed}>Compose action →</button>
+                  </div>
+                </React.Fragment>
+              ) : (
+                <div className="empty"><div className="g">⊟</div>No policy bound yet.<br />Upload a document to get started.</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* STAGE 2 */}
+        {stage === 2 && (
+          <div className="panel">
+            <h3>Compose a proposed action</h3>
+            <p className="sub">Describe the action reaching the execution boundary. Pick a preset or fill the fields.</p>
+
+            <div className="presets">
+              {PRESETS.map((p, i) => <button className="preset" key={i} onClick={() => applyPreset(p)}>{p.label}</button>)}
+            </div>
+
+            <div className="form-grid">
+              <div className="field">
+                <label>Action</label>
+                <input list="actions" value={action} onChange={(e) => setAction(e.target.value)} spellCheck="false" />
+                <datalist id="actions">{actionsFound.map((a) => <option key={a} value={a} />)}</datalist>
+              </div>
+              <div className="field">
+                <label>Execution target</label>
+                <input value={target} onChange={(e) => setTarget(e.target.value)} spellCheck="false" />
+              </div>
+              <div className="field">
+                <label>Requester role</label>
+                <input list="roles" value={role} onChange={(e) => setRole(e.target.value)} spellCheck="false" />
+                <datalist id="roles">{rolesFound.map((a) => <option key={a} value={a} />)}</datalist>
+              </div>
+              <div className="field">
+                <label>Amount</label>
+                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Currency</label>
+                <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                  {["EUR", "GBP", "USD"].map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="field full">
+                <label>Delegation validity <span style={{ textTransform: "none", opacity: 0.6 }}>(currently dormant)</span></label>
+                <div className="note" style={{ marginTop: 0 }}>
+                  This check exists in the engine (<code>authority.py</code>) but has no wired-up source of expiry right now.
+                  it was never safe to accept directly from a requester (a self-declared date can't be trusted), and the
+                  server-side registry that used to resolve it has been removed. It will simply never appear in the results below.
+                </div>
+              </div>
+              <div className="field full">
+                <label>Evidence attached</label>
+                <div className="chips" onClick={() => document.getElementById("evinput").focus()}>
+                  {evidence.map((e) => (
+                    <span className="chip" key={e}>{e}<button onClick={() => setEvidence(evidence.filter((x) => x !== e))}>×</button></span>
+                  ))}
+                  <input id="evinput" value={evInput} placeholder="type a document + Enter" onChange={(e) => setEvInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addEvidence(evInput); } else if (e.key === "Backspace" && !evInput && evidence.length) { setEvidence(evidence.slice(0, -1)); } }} />
+                </div>
+              </div>
+            </div>
+
+            {error && <div className="err">{error}</div>}
+
+            <div className="actions">
+              <button className="btn btn-ghost" onClick={() => setStage(1)}>← Policy</button>
+              <button className="btn btn-primary" onClick={resolve} disabled={busy || !action || !role}>{busy ? "Resolving…" : "Resolve at bind →"}</button>
+            </div>
+          </div>
+        )}
+
+        {/* STAGE 3 */}
+        {stage === 3 && result && (
+          <div className="decision-grid">
+            <div className="panel" style={{ padding: 0, border: "none", background: "transparent" }}>
+              <div className={"verdict " + result.decision.toLowerCase()}>
+                <div className="lead">
+                  <div className="ring">{result.decision === "ALLOW" ? "✓" : result.decision === "ESCALATE" ? "!" : "✕"}</div>
+                  <h2>{result.decision}</h2>
+                </div>
+                <p className="reason">{result.reason}</p>
+                {result.required_action && (
+                  <div className="req"><span className="k">Required action</span>{result.required_action}</div>
+                )}
+                <div className="astate">authority_state · <b>{result.authority_state}</b> · target <b>{result.execution_target || "—"}</b></div>
+              </div>
+
+              <div style={{ marginTop: 18 }} className="checks">
+                <h4>Runtime authority checks</h4>
+                {result.checks.map((c, i) => (
+                  <div className={"check " + (c.passed ? "pass" : "fail")} key={i}>
+                    <div className="ic">{c.passed ? "✓" : "✕"}</div>
+                    <div className="cmain">
+                      <div className="cname">{CHECK_LABEL[c.name] || c.name}</div>
+                      {c.reason && <div className="creason">{c.reason}</div>}
+                    </div>
+                    <div className="cstatus">{c.passed ? "VERIFIED" : (CHECK_FAIL_STATUS[c.name] || "FAILED")}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="actions">
+                <button className="btn btn-ghost" onClick={() => setStage(2)}>← Change action</button>
+                <button className="btn btn-ghost" onClick={() => { setStage(1); setResult(null); }}>Rebind policy</button>
+              </div>
+            </div>
+
+            <div className="bindrec">
+              <div className="bindrec-top">
+                <div className="ttl">Bind record</div>
+                <div className="bindrec-tools">
+                  <span className="seal"><span className="d"></span>FINALISED</span>
+                  <button className="tool" onClick={copyJSON}>Copy</button>
+                  <button className="tool" onClick={downloadJSON}>Download JSON</button>
+                </div>
+              </div>
+              <pre className="json" dangerouslySetInnerHTML={{ __html: highlight(result) }} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="footer">
+        <div className="wrap fl">
+          <span>Authority before execution · Admissibility at bind · Evidence captured at bind</span>
+          <span className="mono">{apiBase}</span>
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+
+function Step({ n, k, t, active, done, onClick, enabled }) {
+  return (
+    <div className={"step" + (active ? " active" : "") + (done ? " done" : "") + (enabled ? "" : " disabled")} onClick={enabled ? onClick : undefined}>
+      <div className="step-num">{done ? "✓" : n}</div>
+      <div className="step-label"><span className="k">{k}</span><span className="t">{t}</span></div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
