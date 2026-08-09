@@ -1419,8 +1419,17 @@ A passing captured test run should not be interpreted as formal verification or 
 \## 21. Verification Evidence
 
 
+The companion **FlowSignal Runtime Authority Evidence** repository is published at:
 
-The companion \*\*FlowSignal Runtime Authority Evidence\*\* repository contains captured artefacts demonstrating selected behaviours of the reference implementation.
+https://github.com/grahamb-ai/runtime-authority-evidence
+
+It contains captured artefacts demonstrating selected behaviours of this reference implementation.
+
+The evidence set identifies implementation revision:
+
+`ea36ac1`
+
+as the source revision reviewed alongside the captured evidence.
 
 
 
