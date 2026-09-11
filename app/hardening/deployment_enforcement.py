@@ -95,7 +95,10 @@ def verify_break_glass_integrity(
     authority: BreakGlassAuthority,
     key: bytes = REFERENCE_BREAK_GLASS_KEY,
 ) -> bool:
-    if not authority.integrity_reference.startswith(f"{BREAK_GLASS_INTEGRITY_PROFILE}:"):
+    if (
+        not isinstance(authority.integrity_reference, str)
+        or not authority.integrity_reference.startswith(f"{BREAK_GLASS_INTEGRITY_PROFILE}:")
+    ):
         return False
     supplied = authority.integrity_reference.split(":", 1)[1]
     unsigned = replace(authority, integrity_reference="")
