@@ -239,6 +239,10 @@ class WholeStackExecutionCoordinator:
         }
         if context.distributed_lease_id is None:
             return self._blocked("COMPOSITION_EVIDENCE", "current distributed lease unavailable", indeterminate=True)
+        if type(context.distributed_authority_epoch) is not int or context.distributed_authority_epoch <= 0:
+            return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority epoch must be a positive integer")
+        if type(context.current_distributed_epoch) is not int or context.current_distributed_epoch <= 0:
+            return self._blocked("DISTRIBUTED_AUTHORITY", "current distributed authority epoch must be a positive integer")
 
         for evidence in context.layer_evidence:
             if evidence.producer_id != EXPECTED_LAYER_PRODUCERS[evidence.layer]:
@@ -259,6 +263,10 @@ class WholeStackExecutionCoordinator:
             )
             if any(value is None for value in version_dimensions):
                 return self._blocked("COMPOSITION_EVIDENCE", f"fencing/version binding absent for {evidence.layer}", indeterminate=True)
+            if type(evidence.authority_epoch) is not int or evidence.authority_epoch <= 0:
+                return self._blocked("COMPOSITION_EVIDENCE", f"invalid authority epoch type/value for {evidence.layer}")
+            if type(evidence.deployment_profile_version) is not int or evidence.deployment_profile_version <= 0:
+                return self._blocked("COMPOSITION_EVIDENCE", f"invalid deployment profile version type/value for {evidence.layer}")
             if evidence.authority_epoch != context.current_distributed_epoch:
                 return self._blocked("COMPOSITION_EVIDENCE", f"authority epoch mismatch for {evidence.layer}")
             if evidence.authority_lease_id != context.distributed_lease_id:
@@ -288,8 +296,6 @@ class WholeStackExecutionCoordinator:
             return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority indeterminate", indeterminate=True)
         if context.distributed_status != "ACTIVE":
             return self._blocked("DISTRIBUTED_AUTHORITY", f"distributed authority not active: {context.distributed_status}")
-        if context.distributed_authority_epoch is None or context.current_distributed_epoch is None:
-            return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority epoch unavailable", indeterminate=True)
         if context.distributed_authority_epoch != context.current_distributed_epoch:
             return self._blocked("DISTRIBUTED_AUTHORITY", "execution context fenced by current distributed authority epoch")
 
