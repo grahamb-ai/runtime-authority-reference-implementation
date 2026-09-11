@@ -86,7 +86,10 @@ def make_layer_authority_evidence(
 
 
 def verify_layer_authority_evidence(evidence: LayerAuthorityEvidence) -> bool:
-    if not evidence.integrity_reference.startswith("WS-HMAC-SHA256-1:"):
+    if (
+        not isinstance(evidence.integrity_reference, str)
+        or not evidence.integrity_reference.startswith("WS-HMAC-SHA256-1:")
+    ):
         return False
     supplied = evidence.integrity_reference.split(":", 1)[1]
     unsigned = LayerAuthorityEvidence(
