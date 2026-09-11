@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 from .models import ExactClinicalCommit, ProtectedClinicalBind
+
+REFERENCE_BREAK_GLASS_KEY = b"asvh-reference-break-glass-only"
+BREAK_GLASS_INTEGRITY_PROFILE = "BG-HMAC-SHA256-1"
 
 
 @dataclass(frozen=True)
@@ -41,6 +47,55 @@ class BreakGlassAuthority:
     integrity_reference: str = ""
 
 
+def _break_glass_payload(authority: BreakGlassAuthority) -> str:
+    return json.dumps(
+        {
+            "override_id": authority.override_id,
+            "authority_identity": authority.authority_identity,
+            "commit_binding_hash": authority.commit_binding_hash,
+            "deployment_id": authority.deployment_id,
+            "issued_at": authority.issued_at,
+            "expires_at": authority.expires_at,
+            "policy_version": authority.policy_version,
+            "single_use": authority.single_use,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def compute_break_glass_integrity(
+    authority: BreakGlassAuthority,
+    key: bytes = REFERENCE_BREAK_GLASS_KEY,
+) -> str:
+    digest = hmac.new(
+        key,
+        _break_glass_payload(authority).encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"{BREAK_GLASS_INTEGRITY_PROFILE}:{digest}"
+
+
+def sign_break_glass_authority(
+    authority: BreakGlassAuthority,
+    key: bytes = REFERENCE_BREAK_GLASS_KEY,
+) -> BreakGlassAuthority:
+    unsigned = replace(authority, integrity_reference="")
+    return replace(unsigned, integrity_reference=compute_break_glass_integrity(unsigned, key))
+
+
+def verify_break_glass_integrity(
+    authority: BreakGlassAuthority,
+    key: bytes = REFERENCE_BREAK_GLASS_KEY,
+) -> bool:
+    if not authority.integrity_reference.startswith(f"{BREAK_GLASS_INTEGRITY_PROFILE}:"):
+        return False
+    supplied = authority.integrity_reference.split(":", 1)[1]
+    unsigned = replace(authority, integrity_reference="")
+    expected = compute_break_glass_integrity(unsigned, key).split(":", 1)[1]
+    return hmac.compare_digest(supplied, expected)
+
+
 @dataclass(frozen=True)
 class EnforcementEvidence:
     status: str  # FORMED | PREVENTED | INDETERMINATE
@@ -60,9 +115,10 @@ class DeploymentEnforcer:
     The active profile is constructor-bound. A caller-supplied profile must be
     exactly the active immutable profile; matching only version/deployment is
     insufficient because it would permit same-version route or contract
-    substitution. Break-glass single-use is enforced atomically within this
-    enforcer instance. This is a bounded harness mechanism, not production IAM
-    or distributed replay protection.
+    substitution. Break-glass authority must be integrity-bound and single-use
+    is enforced atomically within this enforcer instance. This is a bounded
+    harness mechanism, not production IAM, key management or distributed replay
+    protection.
     """
 
     def __init__(self, active_profile: DeploymentBoundaryProfile):
@@ -121,6 +177,8 @@ class DeploymentEnforcer:
 
         if break_glass is None:
             return evidence("PREVENTED", "non-ALLOW decision has no separate break-glass authority")
+        if not verify_break_glass_integrity(break_glass):
+            return evidence("PREVENTED", "break-glass integrity invalid", break_glass.override_id)
         if break_glass.deployment_id != self.active_profile.deployment_id:
             return evidence("PREVENTED", "break-glass deployment mismatch")
         if break_glass.policy_version != self.active_profile.break_glass_policy_version:
