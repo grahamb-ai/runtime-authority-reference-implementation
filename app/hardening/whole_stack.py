@@ -1,10 +1,58 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from .deployment_enforcement import DeploymentEnforcer, EnforcementEvidence, DeploymentBoundaryProfile, BreakGlassAuthority
 from .models import ExactClinicalCommit, ProtectedClinicalBind
+
+REFERENCE_COMPOSITION_KEY = b"asvh-reference-composition-only"
+COMPOSITION_EVIDENCE_MAX_AGE_SECONDS = 30
+
+
+@dataclass(frozen=True)
+class LayerAuthorityEvidence:
+    layer: str
+    producer_id: str
+    deployment_id: str
+    commit_binding_hash: str
+    status: str
+    observed_at: str
+    integrity_reference: str = ""
+
+    def payload(self) -> str:
+        return json.dumps({
+            "layer": self.layer,
+            "producer_id": self.producer_id,
+            "deployment_id": self.deployment_id,
+            "commit_binding_hash": self.commit_binding_hash,
+            "status": self.status,
+            "observed_at": self.observed_at,
+        }, sort_keys=True, separators=(",", ":"))
+
+
+def make_layer_authority_evidence(*, layer: str, producer_id: str, deployment_id: str, commit_binding_hash: str, status: str, observed_at: str) -> LayerAuthorityEvidence:
+    unsigned = LayerAuthorityEvidence(layer, producer_id, deployment_id, commit_binding_hash, status, observed_at)
+    digest = hmac.new(REFERENCE_COMPOSITION_KEY, unsigned.payload().encode("utf-8"), hashlib.sha256).hexdigest()
+    return LayerAuthorityEvidence(layer, producer_id, deployment_id, commit_binding_hash, status, observed_at, f"WS-HMAC-SHA256-1:{digest}")
+
+
+def verify_layer_authority_evidence(evidence: LayerAuthorityEvidence) -> bool:
+    if not evidence.integrity_reference.startswith("WS-HMAC-SHA256-1:"):
+        return False
+    supplied = evidence.integrity_reference.split(":", 1)[1]
+    expected = hmac.new(REFERENCE_COMPOSITION_KEY, LayerAuthorityEvidence(
+        evidence.layer,
+        evidence.producer_id,
+        evidence.deployment_id,
+        evidence.commit_binding_hash,
+        evidence.status,
+        evidence.observed_at,
+    ).payload().encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(supplied, expected)
 
 
 @dataclass(frozen=True)
@@ -26,6 +74,7 @@ class WholeStackAuthorityContext:
     evidence_product_identifier: str | None = None
     evidence_product_version: str | None = None
     authority_commit_binding_hash: str | None = None
+    layer_evidence: tuple[LayerAuthorityEvidence, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -73,9 +122,6 @@ class WholeStackExecutionCoordinator:
         now: datetime,
         break_glass: BreakGlassAuthority | None = None,
     ) -> WholeStackEvidence:
-        # Cross-layer identity coherence. A collection of individually valid
-        # upstream results is not execution-authoritative unless each result is
-        # bound to the same deployment and the same material consequence.
         identity_values = (
             context.distributed_deployment_id,
             context.recovery_deployment_id,
