@@ -30,7 +30,10 @@ class DeploymentBoundaryProfile:
     protected_routes: tuple[RouteBinding, ...]
     break_glass_policy_version: str
     break_glass_max_validity_seconds: int = 900
-    break_glass_authority_identities: tuple[str, ...] = ("CLINICAL-DUTY-MANAGER",)
+    break_glass_authority_identities: tuple[str, ...] = (
+        "CLINICAL-DUTY-MANAGER",
+        "DUTY-CONSULTANT",
+    )
     integrity_valid: bool = True
 
     def binding_for(self, route_id: str) -> RouteBinding | None:
