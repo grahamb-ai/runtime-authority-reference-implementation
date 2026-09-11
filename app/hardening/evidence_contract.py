@@ -88,15 +88,56 @@ class EvidenceContractEvaluator:
         return True
 
     def _temporal_status(self, item: EvidenceItem) -> str | None:
+        """Return explicit temporal failure rather than raising or trusting caller time.
+
+        The harness clock is authoritative for this bounded reference test. An
+        observation timestamp in the future is not current evidence. Malformed,
+        timezone-incompatible or otherwise non-comparable timestamps are INVALID.
+        """
         now = self.clock.now()
-        observed = datetime.fromisoformat(item.observed_at)
-        if item.valid_from and now < datetime.fromisoformat(item.valid_from):
+        try:
+            observed = datetime.fromisoformat(item.observed_at)
+            if observed > now:
+                return INVALID
+            if item.valid_from:
+                valid_from = datetime.fromisoformat(item.valid_from)
+                if now < valid_from:
+                    return INVALID
+            if item.valid_until:
+                valid_until = datetime.fromisoformat(item.valid_until)
+                if now > valid_until:
+                    return STALE
+            if item.max_age_seconds is not None and now - observed > timedelta(seconds=item.max_age_seconds):
+                return STALE
+        except (ValueError, TypeError):
             return INVALID
-        if item.valid_until and now > datetime.fromisoformat(item.valid_until):
-            return STALE
-        if item.max_age_seconds is not None and now - observed > timedelta(seconds=item.max_age_seconds):
-            return STALE
         return None
+
+    def _invalid_collision(
+        self,
+        contract: ControlContract,
+        evidence: tuple[EvidenceItem, ...],
+    ) -> EvidenceEvaluation:
+        """Represent an evidence-id collision as explicit INVALID evidence.
+
+        An evidence_id is the reconstruction identity of an item. The same ID
+        cannot legitimately denote two different payloads inside one evaluation.
+        """
+        unique_ids = tuple(dict.fromkeys(i.evidence_id for i in evidence))
+        unique_sources = tuple(dict.fromkeys(i.evidence_source for i in evidence))
+        unique_authorities = tuple(dict.fromkeys(i.evidence_authority for i in evidence))
+        unique_provenance = tuple(dict.fromkeys((i.provenance_reference or "") for i in evidence))
+        return EvidenceEvaluation(
+            control_id=contract.control_id,
+            contract_version=contract.contract_version,
+            status=INVALID,
+            outcome=contract.outcome_for(INVALID),
+            evidence_ids=unique_ids,
+            evidence_sources=unique_sources,
+            evidence_authorities=unique_authorities,
+            provenance_references=unique_provenance,
+            predicate_result=False,
+        )
 
     def evaluate(
         self,
@@ -109,10 +150,26 @@ class EvidenceContractEvaluator:
         expected_product_version: str | None = None,
         requester_source: str | None = None,
     ) -> EvidenceEvaluation:
-        evidence = tuple(items)
-        if not evidence:
+        supplied = tuple(items)
+        if not supplied:
             return EvidenceEvaluation(contract.control_id, contract.contract_version, ABSENT, contract.outcome_for(ABSENT), (), (), (), (), False)
 
+        # Evidence identity is stable within an evaluation. Exact duplicate
+        # delivery is de-duplicated; the same ID carrying a different payload is
+        # an identity collision and invalidates the evidence set.
+        seen: dict[str, EvidenceItem] = {}
+        deduplicated: list[EvidenceItem] = []
+        for item in supplied:
+            prior = seen.get(item.evidence_id)
+            if prior is None:
+                seen[item.evidence_id] = item
+                deduplicated.append(item)
+                continue
+            if prior == item:
+                continue
+            return self._invalid_collision(contract, supplied)
+
+        evidence = tuple(deduplicated)
         statuses: list[str] = []
         accepted: list[EvidenceItem] = []
         for item in evidence:
