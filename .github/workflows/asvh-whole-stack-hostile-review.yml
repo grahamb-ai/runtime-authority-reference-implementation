@@ -1,0 +1,46 @@
+name: ASVH Whole-Stack Hostile Review
+
+on:
+  push:
+    branches: [asvh-whole-stack-hostile-review]
+  workflow_dispatch:
+
+jobs:
+  full-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pytest
+      - name: HARDEN-001
+        run: pytest -q tests/test_asvh_harden_001.py tests/test_asvh_harden_001_hostile.py
+      - name: HARDEN-002
+        run: pytest -q tests/test_asvh_harden_002.py tests/test_asvh_harden_002_hostile.py
+      - name: HARDEN-003
+        run: pytest -q tests/test_asvh_harden_003.py tests/test_asvh_harden_003_hostile.py
+      - name: HARDEN-004
+        run: pytest -q tests/test_asvh_harden_004.py tests/test_asvh_harden_004_hostile.py
+      - name: HARDEN-005
+        run: pytest -q tests/test_asvh_harden_005.py tests/test_asvh_harden_005_hostile.py
+      - name: HARDEN-006
+        run: pytest -q tests/test_asvh_harden_006.py tests/test_asvh_harden_006_hostile.py
+      - name: HARDEN-007
+        run: pytest -q tests/test_asvh_harden_007.py tests/test_asvh_harden_007_hostile.py
+      - name: HARDEN-008
+        run: pytest -q tests/test_asvh_harden_008.py tests/test_asvh_harden_008_hostile.py
+      - name: HARDEN-009
+        run: pytest -q tests/test_asvh_harden_009.py tests/test_asvh_harden_009_hostile.py
+
+  whole-stack-hostile:
+    needs: full-regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pytest
+      - name: Run frozen whole-stack hostile review
+        run: pytest -q tests/test_asvh_whole_stack_hostile.py
