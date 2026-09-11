@@ -18,10 +18,6 @@ class WholeStackAuthorityContext:
     current_distributed_epoch: int | None = None
     recovery_authority_status: str | None = None
     evidence_contract_status: str | None = None
-    # Cross-layer identity fields are carried explicitly so hostile review can
-    # test whether individually valid results from different contexts can be
-    # assembled into one execution. They are intentionally not enforced by
-    # this baseline commit; pass-3 hostile tests determine that requirement.
     distributed_deployment_id: str | None = None
     recovery_deployment_id: str | None = None
     evidence_deployment_id: str | None = None
@@ -50,9 +46,10 @@ def _parse_ts(value: str) -> datetime:
 class WholeStackExecutionCoordinator:
     """Reference composition boundary for HARDEN-001 through HARDEN-009.
 
-    Upstream authority results are re-composed as decisive execution
-    prerequisites. This is a reference-harness composition mechanism, not a
-    production transaction, consensus, or NHS/EPR non-bypassability claim.
+    Upstream authority results and their cross-layer identities are re-composed
+    as decisive execution prerequisites. This is a reference-harness mechanism,
+    not a production transaction, consensus, identity-provider, or NHS/EPR
+    non-bypassability claim.
     """
 
     def __init__(self, enforcer: DeploymentEnforcer):
@@ -76,6 +73,43 @@ class WholeStackExecutionCoordinator:
         now: datetime,
         break_glass: BreakGlassAuthority | None = None,
     ) -> WholeStackEvidence:
+        # Cross-layer identity coherence. A collection of individually valid
+        # upstream results is not execution-authoritative unless each result is
+        # bound to the same deployment and the same material consequence.
+        identity_values = (
+            context.distributed_deployment_id,
+            context.recovery_deployment_id,
+            context.evidence_deployment_id,
+            context.policy_deployment_id,
+            context.evidence_subject_ref,
+            context.evidence_product_identifier,
+            context.evidence_product_version,
+            context.authority_commit_binding_hash,
+        )
+        if any(value is None for value in identity_values):
+            return self._blocked("IDENTITY_COHERENCE", "required cross-layer identity binding absent", indeterminate=True)
+
+        expected_deployment = self.enforcer.active_profile.deployment_id
+        deployment_bindings = {
+            "distributed": context.distributed_deployment_id,
+            "recovery": context.recovery_deployment_id,
+            "evidence": context.evidence_deployment_id,
+            "policy": context.policy_deployment_id,
+        }
+        mismatched = [name for name, value in deployment_bindings.items() if value != expected_deployment]
+        if mismatched:
+            return self._blocked("IDENTITY_COHERENCE", f"cross-layer deployment mismatch: {','.join(mismatched)}")
+        if supplied_profile.deployment_id != expected_deployment:
+            return self._blocked("IDENTITY_COHERENCE", "supplied deployment profile identity differs from active deployment")
+        if context.evidence_subject_ref != commit.patient_ref:
+            return self._blocked("IDENTITY_COHERENCE", "contracted evidence subject differs from exact consequence subject")
+        if context.evidence_product_identifier != commit.product_identifier:
+            return self._blocked("IDENTITY_COHERENCE", "contracted evidence product differs from exact consequence product")
+        if context.evidence_product_version != commit.product_version:
+            return self._blocked("IDENTITY_COHERENCE", "contracted evidence product version differs from exact consequence product version")
+        if context.authority_commit_binding_hash != commit.commit_binding_hash:
+            return self._blocked("IDENTITY_COHERENCE", "authority consequence binding differs from exact consequence")
+
         if context.distributed_status is None:
             return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority result absent", indeterminate=True)
         if context.distributed_status == "INDETERMINATE":
