@@ -325,6 +325,13 @@ class WholeStackExecutionCoordinator:
         if context.present_standing_status != "ALLOW":
             return self._blocked("PRESENT_STANDING", f"present standing not admissible: {context.present_standing_status}")
 
+        # The exact consequence's policy/rules basis must remain coherent for
+        # every execution path, including separate break-glass authority.
+        if commit.runtime_policy_version != context.authority_policy_version:
+            return self._blocked("POLICY_BINDING", "exact commit policy basis differs from authority context")
+        if commit.rule_catalogue_version != context.authority_rule_catalogue_version:
+            return self._blocked("POLICY_BINDING", "exact commit rule catalogue differs from authority context")
+
         if original_decision == "ALLOW":
             if bind is None:
                 return self._blocked("PROTECTED_BIND", "ALLOW path missing protected bind")
@@ -345,10 +352,6 @@ class WholeStackExecutionCoordinator:
                 return self._blocked("POLICY_BINDING", "protected bind policy basis differs from authority context")
             if bind.rule_catalogue_version != context.authority_rule_catalogue_version:
                 return self._blocked("POLICY_BINDING", "protected bind rule catalogue differs from authority context")
-            if commit.runtime_policy_version != context.authority_policy_version:
-                return self._blocked("POLICY_BINDING", "exact commit policy basis differs from authority context")
-            if commit.rule_catalogue_version != context.authority_rule_catalogue_version:
-                return self._blocked("POLICY_BINDING", "exact commit rule catalogue differs from authority context")
             if not verify_bind_integrity(bind):
                 return self._blocked("PROTECTED_BIND", "protected bind integrity invalid")
             if bind.use_semantics != "SINGLE_USE":
