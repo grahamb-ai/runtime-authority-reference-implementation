@@ -124,6 +124,8 @@ def _valid_profile_structure(profile: DeploymentBoundaryProfile) -> bool:
         return False
     if type(profile.profile_version) is not int or profile.profile_version <= 0:
         return False
+    if profile.integrity_valid is not True:
+        return False
     if not isinstance(profile.protected_routes, tuple) or not profile.protected_routes:
         return False
     route_ids: list[str] = []
@@ -159,17 +161,17 @@ class DeploymentEnforcer:
     insufficient because it would permit same-version route or contract
     substitution. The authoritative profile must also be structurally
     meaningful: identifiers and governed consequence metadata are non-blank,
-    profile version is a positive integer, and protected routes are non-empty,
-    uniquely identified and bound to non-blank target capabilities. Runtime
-    decision vocabulary is closed and exact. Break-glass authority must be
-    integrity-bound, carry an authority identity explicitly admitted by the
-    active profile and a non-blank override identifier, use timezone-aware
-    temporal evidence, remain inside the profile-bound maximum validity
-    interval, and carry explicit SINGLE_USE semantics. The validity interval is
-    half-open: issued_at is inclusive and expires_at is exclusive. Consumption
-    is enforced atomically inside this enforcer by default and can be extended
-    across enforcer instances and restart by supplying a shared
-    BreakGlassUseStore.
+    profile version is a positive integer, profile integrity must be exact
+    boolean True, and protected routes are non-empty, uniquely identified and
+    bound to non-blank target capabilities. Runtime decision vocabulary is
+    closed and exact. Break-glass authority must be integrity-bound, carry an
+    authority identity explicitly admitted by the active profile and a
+    non-blank override identifier, use timezone-aware temporal evidence, remain
+    inside the profile-bound maximum validity interval, and carry explicit
+    SINGLE_USE semantics. The validity interval is half-open: issued_at is
+    inclusive and expires_at is exclusive. Consumption is enforced atomically
+    inside this enforcer by default and can be extended across enforcer
+    instances and restart by supplying a shared BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
     external monotonic storage or distributed consensus.
