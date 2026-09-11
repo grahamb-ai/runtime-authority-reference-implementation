@@ -116,9 +116,10 @@ class DeploymentEnforcer:
     The active profile is constructor-bound. A caller-supplied profile must be
     exactly the active immutable profile; matching only version/deployment is
     insufficient because it would permit same-version route or contract
-    substitution. Break-glass authority must be integrity-bound and must carry
-    explicit SINGLE_USE semantics. Consumption is enforced atomically inside
-    this enforcer by default and can be extended across enforcer instances and
+    substitution. Break-glass authority must be integrity-bound, carry a
+    non-blank authority identity and override identifier, and carry explicit
+    SINGLE_USE semantics. Consumption is enforced atomically inside this
+    enforcer by default and can be extended across enforcer instances and
     restart by supplying a shared BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
@@ -188,14 +189,16 @@ class DeploymentEnforcer:
             return evidence("PREVENTED", "non-ALLOW decision has no separate break-glass authority")
         if not verify_break_glass_integrity(break_glass):
             return evidence("PREVENTED", "break-glass integrity invalid", break_glass.override_id)
+        if not isinstance(break_glass.override_id, str) or not break_glass.override_id.strip():
+            return evidence("PREVENTED", "break-glass override identifier missing", break_glass.override_id)
+        if not isinstance(break_glass.authority_identity, str) or not break_glass.authority_identity.strip():
+            return evidence("PREVENTED", "break-glass authority identity missing", break_glass.override_id)
         if break_glass.deployment_id != self.active_profile.deployment_id:
             return evidence("PREVENTED", "break-glass deployment mismatch")
         if break_glass.policy_version != self.active_profile.break_glass_policy_version:
             return evidence("PREVENTED", "break-glass policy version mismatch")
         if break_glass.commit_binding_hash != commit.commit_binding_hash:
             return evidence("PREVENTED", "break-glass exact consequence mismatch")
-        if not break_glass.authority_identity:
-            return evidence("PREVENTED", "break-glass authority identity missing")
         if break_glass.single_use is not True:
             return evidence(
                 "PREVENTED",
