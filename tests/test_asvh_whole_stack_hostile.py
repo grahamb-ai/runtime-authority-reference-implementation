@@ -38,12 +38,23 @@ def valid_bind(commit=None):
 
 def _layer_evidence(c, distributed, recovery, evidence, policy, standing):
     observed_at = NOW.isoformat()
+    common = dict(
+        deployment_id="DEP-01",
+        commit_binding_hash=c.commit_binding_hash,
+        observed_at=observed_at,
+        authority_epoch=2,
+        authority_lease_id="LEASE-01",
+        runtime_policy_version=c.runtime_policy_version,
+        rule_catalogue_version=c.rule_catalogue_version,
+        control_contract_version="CC-1.0",
+        deployment_profile_version=1,
+    )
     return (
-        make_layer_authority_evidence(layer="DISTRIBUTED_AUTHORITY", producer_id="RA-DISTRIBUTED-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=distributed or "ABSENT", observed_at=observed_at),
-        make_layer_authority_evidence(layer="RECOVERY_AUTHORITY", producer_id="RA-RECOVERY-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=recovery or "ABSENT", observed_at=observed_at),
-        make_layer_authority_evidence(layer="EVIDENCE_CONTRACT", producer_id="RA-EVIDENCE-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=evidence or "ABSENT", observed_at=observed_at),
-        make_layer_authority_evidence(layer="POLICY_TRANSITION", producer_id="RA-POLICY-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=policy or "ABSENT", observed_at=observed_at),
-        make_layer_authority_evidence(layer="PRESENT_STANDING", producer_id="RA-STANDING-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=standing or "ABSENT", observed_at=observed_at),
+        make_layer_authority_evidence(layer="DISTRIBUTED_AUTHORITY", producer_id="RA-DISTRIBUTED-01", status=distributed or "ABSENT", **common),
+        make_layer_authority_evidence(layer="RECOVERY_AUTHORITY", producer_id="RA-RECOVERY-01", status=recovery or "ABSENT", **common),
+        make_layer_authority_evidence(layer="EVIDENCE_CONTRACT", producer_id="RA-EVIDENCE-01", status=evidence or "ABSENT", **common),
+        make_layer_authority_evidence(layer="POLICY_TRANSITION", producer_id="RA-POLICY-01", status=policy or "ABSENT", **common),
+        make_layer_authority_evidence(layer="PRESENT_STANDING", producer_id="RA-STANDING-01", status=standing or "ABSENT", **common),
     )
 
 
@@ -57,6 +68,7 @@ def context(distributed="ACTIVE", policy="ALLOW", standing="ALLOW", *, authority
         authority_rule_catalogue_version=rules,
         distributed_authority_epoch=epoch,
         current_distributed_epoch=current_epoch,
+        distributed_lease_id="LEASE-01",
         recovery_authority_status=recovery,
         evidence_contract_status=evidence,
         distributed_deployment_id="DEP-01",
