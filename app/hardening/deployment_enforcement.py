@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from datetime import datetime
-from typing import FrozenSet
 
 from .models import ExactClinicalCommit, ProtectedClinicalBind
 
@@ -54,8 +54,20 @@ class EnforcementEvidence:
 
 
 class DeploymentEnforcer:
+    """Reference-harness deployment boundary enforcer.
+
+    The active profile is constructor-bound. A caller-supplied profile must be
+    exactly the active immutable profile; matching only version/deployment is
+    insufficient because it would permit same-version route or contract
+    substitution. Break-glass single-use is enforced atomically within this
+    enforcer instance. This is a bounded harness mechanism, not production IAM
+    or distributed replay protection.
+    """
+
     def __init__(self, active_profile: DeploymentBoundaryProfile):
         self.active_profile = active_profile
+        self._lock = threading.Lock()
+        self._consumed_break_glass: set[str] = set()
 
     def enforce(
         self,
@@ -86,16 +98,18 @@ class DeploymentEnforcer:
 
         if not enforcement_available:
             return evidence("PREVENTED", "deployment enforcement unavailable; fail closed")
-        if not supplied_profile.integrity_valid:
+        if not self.active_profile.integrity_valid or not supplied_profile.integrity_valid:
             return evidence("PREVENTED", "deployment profile integrity invalid")
-        if supplied_profile.deployment_id != self.active_profile.deployment_id:
-            return evidence("PREVENTED", "deployment profile deployment mismatch")
-        if supplied_profile.profile_version != self.active_profile.profile_version:
-            return evidence("PREVENTED", "deployment profile version not active")
-        if control_contract_version != supplied_profile.active_control_contract_version:
-            return evidence("PREVENTED", "control contract version not authorised by profile")
 
-        route = supplied_profile.binding_for(route_id)
+        # Exact active-profile binding prevents same-version substitution of
+        # route sets, profile identity, contract version or break-glass policy.
+        if supplied_profile != self.active_profile:
+            return evidence("PREVENTED", "supplied deployment profile is not the active authoritative profile")
+
+        if control_contract_version != self.active_profile.active_control_contract_version:
+            return evidence("PREVENTED", "control contract version not authorised by active profile")
+
+        route = self.active_profile.binding_for(route_id)
         if route is None:
             return evidence("PREVENTED", "route not declared in deployment boundary")
         if route.target_capability != target_capability:
@@ -110,12 +124,31 @@ class DeploymentEnforcer:
 
         if break_glass is None:
             return evidence("PREVENTED", "non-ALLOW decision has no separate break-glass authority")
-        if break_glass.deployment_id != supplied_profile.deployment_id:
+        if break_glass.deployment_id != self.active_profile.deployment_id:
             return evidence("PREVENTED", "break-glass deployment mismatch")
-        if break_glass.policy_version != supplied_profile.break_glass_policy_version:
+        if break_glass.policy_version != self.active_profile.break_glass_policy_version:
             return evidence("PREVENTED", "break-glass policy version mismatch")
         if break_glass.commit_binding_hash != commit.commit_binding_hash:
             return evidence("PREVENTED", "break-glass exact consequence mismatch")
-        if now > datetime.fromisoformat(break_glass.expires_at):
+        if not break_glass.authority_identity:
+            return evidence("PREVENTED", "break-glass authority identity missing")
+
+        try:
+            issued_at = datetime.fromisoformat(break_glass.issued_at)
+            expires_at = datetime.fromisoformat(break_glass.expires_at)
+        except (TypeError, ValueError):
+            return evidence("PREVENTED", "break-glass temporal evidence invalid")
+        if now < issued_at:
+            return evidence("PREVENTED", "break-glass not yet valid")
+        if now > expires_at:
             return evidence("PREVENTED", "break-glass expired")
+        if expires_at < issued_at:
+            return evidence("PREVENTED", "break-glass temporal interval invalid")
+
+        with self._lock:
+            if break_glass.single_use:
+                if break_glass.override_id in self._consumed_break_glass:
+                    return evidence("PREVENTED", "break-glass replay rejected", break_glass.override_id)
+                self._consumed_break_glass.add(break_glass.override_id)
+
         return evidence("FORMED", "separate break-glass authority accepted", break_glass.override_id)
