@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from .deployment_enforcement import DeploymentEnforcer, EnforcementEvidence, DeploymentBoundaryProfile, BreakGlassAuthority
 from .models import ExactClinicalCommit, ProtectedClinicalBind
 from .runtime import verify_bind_integrity
+from .store import BindStore
 
 REFERENCE_COMPOSITION_KEY = b"asvh-reference-composition-only"
 COMPOSITION_EVIDENCE_MAX_AGE_SECONDS = 30
@@ -138,16 +139,48 @@ def _parse_ts(value: str) -> datetime:
 
 
 class WholeStackExecutionCoordinator:
-    """Reference composition boundary for HARDEN-001 through HARDEN-009."""
+    """Reference composition boundary for HARDEN-001 through HARDEN-009.
 
-    def __init__(self, enforcer: DeploymentEnforcer):
+    A shared BindStore may be supplied to extend SINGLE_USE claims across
+    coordinator instances and coordinator restart. Without one, replay state is
+    intentionally limited to this coordinator instance and claims must be
+    bounded accordingly.
+    """
+
+    def __init__(self, enforcer: DeploymentEnforcer, bind_store: BindStore | None = None):
         self.enforcer = enforcer
+        self.bind_store = bind_store
         self._bind_lock = threading.Lock()
         self._claimed_bind_ids: set[str] = set()
 
     @staticmethod
     def _blocked(layer: str, detail: str, *, indeterminate: bool = False) -> WholeStackEvidence:
         return WholeStackEvidence("INDETERMINATE" if indeterminate else "PREVENTED", layer, detail, None)
+
+    def _claim_bind(self, bind: ProtectedClinicalBind, now: datetime) -> WholeStackEvidence | None:
+        if self.bind_store is not None:
+            try:
+                stored = self.bind_store.get(bind.bind_id)
+            except Exception:
+                return self._blocked("PROTECTED_BIND", "durable bind claim state unavailable", indeterminate=True)
+            if stored is None:
+                return self._blocked("PROTECTED_BIND", "protected bind absent from durable claim store", indeterminate=True)
+            stored_bind, _status = stored
+            if stored_bind != bind:
+                return self._blocked("PROTECTED_BIND", "durable bind payload differs from supplied bind")
+            try:
+                claimed = self.bind_store.claim(bind.bind_id, now.isoformat())
+            except Exception:
+                return self._blocked("PROTECTED_BIND", "durable bind claim state unavailable", indeterminate=True)
+            if not claimed:
+                return self._blocked("PROTECTED_BIND", "protected bind replay rejected by durable claim store")
+            return None
+
+        with self._bind_lock:
+            if bind.bind_id in self._claimed_bind_ids:
+                return self._blocked("PROTECTED_BIND", "protected bind replay rejected")
+            self._claimed_bind_ids.add(bind.bind_id)
+        return None
 
     def execute(self, *, context: WholeStackAuthorityContext, supplied_profile: DeploymentBoundaryProfile,
                 route_id: str, target_capability: str, commit: ExactClinicalCommit,
@@ -318,13 +351,9 @@ class WholeStackExecutionCoordinator:
                 return self._blocked("PROTECTED_BIND", "protected bind integrity invalid")
             if bind.use_semantics != "SINGLE_USE":
                 return self._blocked("PROTECTED_BIND", "protected bind use semantics not single-use")
-            # Reference-harness coordinator-instance claim. Claiming before the
-            # deployment call is conservative: a later downstream prevention
-            # still burns the bind. This is not durable/distributed replay state.
-            with self._bind_lock:
-                if bind.bind_id in self._claimed_bind_ids:
-                    return self._blocked("PROTECTED_BIND", "protected bind replay rejected")
-                self._claimed_bind_ids.add(bind.bind_id)
+            claim_failure = self._claim_bind(bind, effective_now)
+            if claim_failure is not None:
+                return claim_failure
 
         deployment = self.enforcer.enforce(
             supplied_profile=supplied_profile, route_id=route_id,
