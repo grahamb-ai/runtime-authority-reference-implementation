@@ -153,6 +153,7 @@ class DistributedAuthorityGate:
             _strict_int(observation.authority_epoch)
             _strict_int(observation.state_epoch)
             _strict_int(observation.state_sequence)
+            age = _strict_int(observation.replica_age_seconds)
             _version_key(grant.policy_version)
             _version_key(observation.policy_version)
             now = self._now()
@@ -175,7 +176,7 @@ class DistributedAuthorityGate:
             return DistributedDecision("PREVENTED", "leadership lease expired", node_id, ae, grant.lease_id)
         if observed > now:
             return DistributedDecision("PREVENTED", "replica observation is future-dated", node_id, ae, grant.lease_id)
-        if observation.replica_age_seconds > self.max_replica_age_seconds:
+        if age > self.max_replica_age_seconds:
             return DistributedDecision("PREVENTED", "replica observation stale", node_id, ae, grant.lease_id)
         if observation.authority_epoch != ae or observation.lease_id != grant.lease_id:
             return DistributedDecision("PREVENTED", "observation does not match leadership grant", node_id, ae, grant.lease_id)
@@ -194,15 +195,26 @@ class DistributedAuthorityGate:
             return DistributedDecision("INDETERMINATE", "distributed high-watermark unavailable", node_id)
         try:
             _strict_int(grant.authority_epoch)
+            _strict_int(observation.authority_epoch)
             _strict_int(observation.state_epoch)
             _strict_int(observation.state_sequence)
+            _strict_int(observation.replica_age_seconds)
             _version_key(observation.policy_version)
             now = self._now()
             expires = _parse_ts(grant.expires_at)
+            observed = _parse_ts(observation.observed_at)
         except Exception:
             return DistributedDecision("INDETERMINATE", "distributed execution evidence malformed", node_id)
         if now >= expires:
             return DistributedDecision("PREVENTED", "leadership lease expired before consequence formation", node_id, grant.authority_epoch, grant.lease_id)
+        if observed > now or observation.replica_age_seconds > self.max_replica_age_seconds:
+            return DistributedDecision("PREVENTED", "replica observation not currently usable", node_id, grant.authority_epoch, grant.lease_id)
+        if observation.node_id != node_id:
+            return DistributedDecision("PREVENTED", "pre-consequence observation node mismatch", node_id, grant.authority_epoch, grant.lease_id)
+        if observation.authority_epoch != grant.authority_epoch:
+            return DistributedDecision("PREVENTED", "pre-consequence observation authority epoch mismatch", node_id, grant.authority_epoch, grant.lease_id)
+        if observation.lease_id != grant.lease_id:
+            return DistributedDecision("PREVENTED", "pre-consequence observation lease mismatch", node_id, grant.authority_epoch, grant.lease_id)
         if grant.authority_epoch != current["authority_epoch"]:
             return DistributedDecision("PREVENTED", "node fenced by newer authority epoch", node_id, grant.authority_epoch, grant.lease_id)
         if grant.lease_id != current["lease_id"]:
