@@ -118,11 +118,11 @@ class DeploymentEnforcer:
     exactly the active immutable profile; matching only version/deployment is
     insufficient because it would permit same-version route or contract
     substitution. Break-glass authority must be integrity-bound, carry a
-    non-blank authority identity and override identifier, remain inside the
-    profile-bound maximum validity interval, and carry explicit SINGLE_USE
-    semantics. Consumption is enforced atomically inside this enforcer by
-    default and can be extended across enforcer instances and restart by
-    supplying a shared BreakGlassUseStore.
+    non-blank authority identity and override identifier, use timezone-aware
+    temporal evidence, remain inside the profile-bound maximum validity
+    interval, and carry explicit SINGLE_USE semantics. Consumption is enforced
+    atomically inside this enforcer by default and can be extended across
+    enforcer instances and restart by supplying a shared BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
     external monotonic storage or distributed consensus.
@@ -213,6 +213,12 @@ class DeploymentEnforcer:
             expires_at = datetime.fromisoformat(break_glass.expires_at)
         except (TypeError, ValueError):
             return evidence("PREVENTED", "break-glass temporal evidence invalid")
+        if now.tzinfo is None or now.utcoffset() is None:
+            return evidence("PREVENTED", "execution time must be timezone-aware", break_glass.override_id)
+        if issued_at.tzinfo is None or issued_at.utcoffset() is None:
+            return evidence("PREVENTED", "break-glass issued_at must be timezone-aware", break_glass.override_id)
+        if expires_at.tzinfo is None or expires_at.utcoffset() is None:
+            return evidence("PREVENTED", "break-glass expires_at must be timezone-aware", break_glass.override_id)
         if now < issued_at:
             return evidence("PREVENTED", "break-glass not yet valid")
         if now > expires_at:
