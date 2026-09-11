@@ -1,0 +1,26 @@
+name: ASVH HARDEN-004
+
+on:
+  push:
+    branches:
+      - asvh-harden-004-baseline
+  workflow_dispatch:
+
+jobs:
+  evidence-contract-conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: pip install pytest
+      - name: Run HARDEN-001 regression
+        run: pytest -q tests/test_asvh_harden_001.py tests/test_asvh_harden_001_hostile.py
+      - name: Run HARDEN-002 regression
+        run: pytest -q tests/test_asvh_harden_002.py tests/test_asvh_harden_002_hostile.py
+      - name: Run HARDEN-003 regression
+        run: pytest -q tests/test_asvh_harden_003.py tests/test_asvh_harden_003_hostile.py
+      - name: Run frozen HARDEN-004 CTS
+        run: pytest -q tests/test_asvh_harden_004.py
