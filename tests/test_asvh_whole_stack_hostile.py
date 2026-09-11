@@ -32,7 +32,7 @@ def valid_bind(commit=None):
     return commit, bind
 
 
-def context(distributed="ACTIVE", policy="ALLOW", standing="ALLOW", *, authority_policy="HC-POL-1.0", rules="ASVH-RC-1.0", epoch=2, current_epoch=2):
+def context(distributed="ACTIVE", policy="ALLOW", standing="ALLOW", *, authority_policy="HC-POL-1.0", rules="ASVH-RC-1.0", epoch=2, current_epoch=2, recovery="ACTIVE", evidence="ALLOW"):
     return WholeStackAuthorityContext(
         distributed_status=distributed,
         policy_status=policy,
@@ -41,6 +41,8 @@ def context(distributed="ACTIVE", policy="ALLOW", standing="ALLOW", *, authority
         authority_rule_catalogue_version=rules,
         distributed_authority_epoch=epoch,
         current_distributed_epoch=current_epoch,
+        recovery_authority_status=recovery,
+        evidence_contract_status=evidence,
     )
 
 
@@ -146,5 +148,4 @@ def test_ws_015_break_glass_does_not_bypass_incompatible_policy_transition():
 def test_ws_016_superseded_policy_basis_requires_fresh_authority():
     c, b = valid_bind()
     newer_commit = replace(c, runtime_policy_version="HC-POL-1.1")
-    # Reusing the old bind against a new policy-basis commit must not form.
     assert run(context(authority_policy="HC-POL-1.0"), newer_commit, b).status != "FORMED"
