@@ -92,6 +92,24 @@ def test_hostile_h1_014_fabricated_persisted_bind_is_rejected(tmp_path):
     assert simulator.commit_count == 0
 
 
+def test_hostile_signed_bind_tamper_is_rejected(tmp_path):
+    """Changing an immutable signed bind field after issuance must invalidate execution authority."""
+    clock = HarnessClock(datetime(2026, 9, 11, 12, 0, tzinfo=timezone.utc))
+    store = BindStore(tmp_path / "binds.sqlite")
+    simulator = EPRSimulator()
+    executor = ProtectedExecutor(store, simulator, clock)
+    commit = baseline_commit()
+    receipt = make_authority_receipt("ALLOW", commit, clock)
+    bind = make_protected_bind(receipt, commit, clock)
+    assert bind is not None
+
+    tampered = replace(bind, authority_receipt_id="TAMPERED-RECEIPT-ID")
+    store.issue(tampered)
+
+    assert executor.execute(tampered.bind_id, commit) == "BIND_INTEGRITY_FAILURE"
+    assert simulator.commit_count == 0
+
+
 def test_hostile_document_hash_is_derived_from_actual_payload(tmp_path):
     """Confirm caller cannot preserve old authority by changing text while reusing old commit identity."""
     clock = HarnessClock(datetime(2026, 9, 11, 12, 0, tzinfo=timezone.utc))
