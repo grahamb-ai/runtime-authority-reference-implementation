@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from .models import ExactClinicalCommit
-from .runtime import HarnessClock
+from .runtime import HarnessClock, verify_bind_integrity
 from .store import BindStore
 
 
@@ -50,6 +50,10 @@ class ProtectedExecutor:
         if current is None:
             return "NO_VALID_BIND"
         bind, status = current
+
+        # Integrity is checked before a persisted record is treated as execution authority.
+        if not verify_bind_integrity(bind):
+            return "BIND_INTEGRITY_FAILURE"
 
         if status != "ISSUED":
             return "BIND_ALREADY_USED"
