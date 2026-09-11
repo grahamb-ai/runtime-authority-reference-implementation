@@ -13,7 +13,7 @@ PROTECTED = ("test-definition.json", "inputs.json", "observations.json", "result
 
 def make_pack(tmp_path: Path, test_id="H7-X", outcome="PASS"):
     d = tmp_path / test_id
-    d.mkdir()
+    d.mkdir(parents=True)
     payloads = {
         "test-definition.json": {"test_id": test_id},
         "inputs.json": {"synthetic": True},
