@@ -11,6 +11,13 @@ from .models import ExactClinicalCommit, ProtectedClinicalBind
 
 REFERENCE_COMPOSITION_KEY = b"asvh-reference-composition-only"
 COMPOSITION_EVIDENCE_MAX_AGE_SECONDS = 30
+EXPECTED_LAYER_PRODUCERS = {
+    "DISTRIBUTED_AUTHORITY": "RA-DISTRIBUTED-01",
+    "RECOVERY_AUTHORITY": "RA-RECOVERY-01",
+    "EVIDENCE_CONTRACT": "RA-EVIDENCE-01",
+    "POLICY_TRANSITION": "RA-POLICY-01",
+    "PRESENT_STANDING": "RA-STANDING-01",
+}
 
 
 @dataclass(frozen=True)
@@ -95,10 +102,10 @@ def _parse_ts(value: str) -> datetime:
 class WholeStackExecutionCoordinator:
     """Reference composition boundary for HARDEN-001 through HARDEN-009.
 
-    Upstream authority results and their cross-layer identities are re-composed
-    as decisive execution prerequisites. This is a reference-harness mechanism,
-    not a production transaction, consensus, identity-provider, or NHS/EPR
-    non-bypassability claim.
+    Upstream authority results, identities and reference-integrity evidence are
+    re-composed as decisive execution prerequisites. The HMAC mechanism here is
+    harness-only evidence of tamper detection, not a production cryptographic
+    trust claim.
     """
 
     def __init__(self, enforcer: DeploymentEnforcer):
@@ -156,6 +163,48 @@ class WholeStackExecutionCoordinator:
         if context.authority_commit_binding_hash != commit.commit_binding_hash:
             return self._blocked("IDENTITY_COHERENCE", "authority consequence binding differs from exact consequence")
 
+        # Composition evidence must be complete, unique, integrity-valid,
+        # producer-bound, consequence-bound and fresh. This prevents caller-
+        # supplied naked status strings from silently becoming execution truth.
+        required_layers = set(EXPECTED_LAYER_PRODUCERS)
+        if not context.layer_evidence:
+            return self._blocked("COMPOSITION_EVIDENCE", "layer authority evidence absent", indeterminate=True)
+        names = [e.layer for e in context.layer_evidence]
+        if len(names) != len(set(names)):
+            return self._blocked("COMPOSITION_EVIDENCE", "duplicate layer authority evidence")
+        if set(names) != required_layers:
+            return self._blocked("COMPOSITION_EVIDENCE", "required layer authority evidence incomplete", indeterminate=True)
+
+        expected_statuses = {
+            "DISTRIBUTED_AUTHORITY": context.distributed_status or "ABSENT",
+            "RECOVERY_AUTHORITY": context.recovery_authority_status or "ABSENT",
+            "EVIDENCE_CONTRACT": context.evidence_contract_status or "ABSENT",
+            "POLICY_TRANSITION": context.policy_status or "ABSENT",
+            "PRESENT_STANDING": context.present_standing_status or "ABSENT",
+        }
+        effective_now = now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
+        effective_now = effective_now.astimezone(timezone.utc)
+        for evidence in context.layer_evidence:
+            if evidence.producer_id != EXPECTED_LAYER_PRODUCERS[evidence.layer]:
+                return self._blocked("COMPOSITION_EVIDENCE", f"untrusted producer for {evidence.layer}")
+            if not verify_layer_authority_evidence(evidence):
+                return self._blocked("COMPOSITION_EVIDENCE", f"integrity failure for {evidence.layer}")
+            if evidence.deployment_id != expected_deployment:
+                return self._blocked("COMPOSITION_EVIDENCE", f"deployment mismatch for {evidence.layer}")
+            if evidence.commit_binding_hash != commit.commit_binding_hash:
+                return self._blocked("COMPOSITION_EVIDENCE", f"consequence binding mismatch for {evidence.layer}")
+            if evidence.status != expected_statuses[evidence.layer]:
+                return self._blocked("COMPOSITION_EVIDENCE", f"status disagreement for {evidence.layer}")
+            try:
+                observed_at = _parse_ts(evidence.observed_at)
+            except Exception:
+                return self._blocked("COMPOSITION_EVIDENCE", f"invalid observation time for {evidence.layer}", indeterminate=True)
+            age = (effective_now - observed_at).total_seconds()
+            if age < 0:
+                return self._blocked("COMPOSITION_EVIDENCE", f"future observation for {evidence.layer}")
+            if age > COMPOSITION_EVIDENCE_MAX_AGE_SECONDS:
+                return self._blocked("COMPOSITION_EVIDENCE", f"stale observation for {evidence.layer}")
+
         if context.distributed_status is None:
             return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority result absent", indeterminate=True)
         if context.distributed_status == "INDETERMINATE":
@@ -205,8 +254,6 @@ class WholeStackExecutionCoordinator:
             try:
                 issued_at = _parse_ts(bind.issued_at)
                 expires_at = _parse_ts(bind.expires_at)
-                effective_now = now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
-                effective_now = effective_now.astimezone(timezone.utc)
             except Exception:
                 return self._blocked("PROTECTED_BIND", "protected bind temporal state malformed", indeterminate=True)
             if effective_now < issued_at:
