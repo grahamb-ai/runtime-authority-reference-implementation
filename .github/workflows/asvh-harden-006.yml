@@ -1,0 +1,30 @@
+name: ASVH HARDEN-006
+
+on:
+  push:
+    branches:
+      - asvh-harden-006-baseline
+  workflow_dispatch:
+
+jobs:
+  independence-recovery-conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: pip install pytest
+      - name: Run HARDEN-001 regression
+        run: pytest -q tests/test_asvh_harden_001.py tests/test_asvh_harden_001_hostile.py
+      - name: Run HARDEN-002 regression
+        run: pytest -q tests/test_asvh_harden_002.py tests/test_asvh_harden_002_hostile.py
+      - name: Run HARDEN-003 regression
+        run: pytest -q tests/test_asvh_harden_003.py tests/test_asvh_harden_003_hostile.py
+      - name: Run HARDEN-004 regression
+        run: pytest -q tests/test_asvh_harden_004.py tests/test_asvh_harden_004_hostile.py
+      - name: Run HARDEN-005 regression
+        run: pytest -q tests/test_asvh_harden_005.py tests/test_asvh_harden_005_hostile.py
+      - name: Run frozen HARDEN-006 CTS
+        run: pytest -q tests/test_asvh_harden_006.py
