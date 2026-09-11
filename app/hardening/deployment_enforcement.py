@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 
 from .models import ExactClinicalCommit, ProtectedClinicalBind
+from .store import BreakGlassUseStore
 
 REFERENCE_BREAK_GLASS_KEY = b"asvh-reference-break-glass-only"
 BREAK_GLASS_INTEGRITY_PROFILE = "BG-HMAC-SHA256-1"
@@ -115,14 +116,21 @@ class DeploymentEnforcer:
     The active profile is constructor-bound. A caller-supplied profile must be
     exactly the active immutable profile; matching only version/deployment is
     insufficient because it would permit same-version route or contract
-    substitution. Break-glass authority must be integrity-bound and single-use
-    is enforced atomically within this enforcer instance. This is a bounded
-    harness mechanism, not production IAM, key management or distributed replay
-    protection.
+    substitution. Break-glass authority must be integrity-bound. Single-use is
+    enforced atomically inside this enforcer by default and can be extended
+    across enforcer instances/restart by supplying a shared BreakGlassUseStore.
+
+    This is a bounded harness mechanism, not production IAM, key management,
+    external monotonic storage or distributed consensus.
     """
 
-    def __init__(self, active_profile: DeploymentBoundaryProfile):
+    def __init__(
+        self,
+        active_profile: DeploymentBoundaryProfile,
+        break_glass_store: BreakGlassUseStore | None = None,
+    ):
         self.active_profile = active_profile
+        self.break_glass_store = break_glass_store
         self._lock = threading.Lock()
         self._consumed_break_glass: set[str] = set()
 
@@ -200,10 +208,26 @@ class DeploymentEnforcer:
         if expires_at < issued_at:
             return evidence("PREVENTED", "break-glass temporal interval invalid")
 
-        with self._lock:
-            if break_glass.single_use:
-                if break_glass.override_id in self._consumed_break_glass:
-                    return evidence("PREVENTED", "break-glass replay rejected", break_glass.override_id)
-                self._consumed_break_glass.add(break_glass.override_id)
+        if break_glass.single_use:
+            if self.break_glass_store is not None:
+                try:
+                    consumed = self.break_glass_store.consume(break_glass.override_id, now.isoformat())
+                except Exception:
+                    return evidence(
+                        "PREVENTED",
+                        "break-glass replay state unavailable; fail closed",
+                        break_glass.override_id,
+                    )
+                if not consumed:
+                    return evidence(
+                        "PREVENTED",
+                        "break-glass replay rejected by durable replay store",
+                        break_glass.override_id,
+                    )
+            else:
+                with self._lock:
+                    if break_glass.override_id in self._consumed_break_glass:
+                        return evidence("PREVENTED", "break-glass replay rejected", break_glass.override_id)
+                    self._consumed_break_glass.add(break_glass.override_id)
 
         return evidence("FORMED", "separate break-glass authority accepted", break_glass.override_id)
