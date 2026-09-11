@@ -52,7 +52,7 @@ def verify_bind_integrity(
     bind: ProtectedClinicalBind,
     key: bytes = REFERENCE_BIND_INTEGRITY_KEY,
 ) -> bool:
-    if not bind.integrity_reference:
+    if not isinstance(bind.integrity_reference, str) or not bind.integrity_reference:
         return False
     expected = compute_bind_integrity(bind, key)
     return hmac.compare_digest(bind.integrity_reference, expected)
