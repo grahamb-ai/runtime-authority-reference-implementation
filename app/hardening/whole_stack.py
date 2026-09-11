@@ -87,18 +87,11 @@ def verify_layer_authority_evidence(evidence: LayerAuthorityEvidence) -> bool:
         return False
     supplied = evidence.integrity_reference.split(":", 1)[1]
     unsigned = LayerAuthorityEvidence(
-        evidence.layer,
-        evidence.producer_id,
-        evidence.deployment_id,
-        evidence.commit_binding_hash,
-        evidence.status,
-        evidence.observed_at,
-        evidence.authority_epoch,
-        evidence.authority_lease_id,
-        evidence.runtime_policy_version,
-        evidence.rule_catalogue_version,
-        evidence.control_contract_version,
-        evidence.deployment_profile_version,
+        evidence.layer, evidence.producer_id, evidence.deployment_id,
+        evidence.commit_binding_hash, evidence.status, evidence.observed_at,
+        evidence.authority_epoch, evidence.authority_lease_id,
+        evidence.runtime_policy_version, evidence.rule_catalogue_version,
+        evidence.control_contract_version, evidence.deployment_profile_version,
     )
     expected = hmac.new(REFERENCE_COMPOSITION_KEY, unsigned.payload().encode("utf-8"), hashlib.sha256).hexdigest()
     return hmac.compare_digest(supplied, expected)
@@ -143,13 +136,7 @@ def _parse_ts(value: str) -> datetime:
 
 
 class WholeStackExecutionCoordinator:
-    """Reference composition boundary for HARDEN-001 through HARDEN-009.
-
-    Upstream authority results, identities and reference-integrity evidence are
-    re-composed as decisive execution prerequisites. The HMAC mechanism here is
-    harness-only evidence of tamper detection, not a production cryptographic
-    trust claim.
-    """
+    """Reference composition boundary for HARDEN-001 through HARDEN-009."""
 
     def __init__(self, enforcer: DeploymentEnforcer):
         self.enforcer = enforcer
@@ -158,29 +145,16 @@ class WholeStackExecutionCoordinator:
     def _blocked(layer: str, detail: str, *, indeterminate: bool = False) -> WholeStackEvidence:
         return WholeStackEvidence("INDETERMINATE" if indeterminate else "PREVENTED", layer, detail, None)
 
-    def execute(
-        self,
-        *,
-        context: WholeStackAuthorityContext,
-        supplied_profile: DeploymentBoundaryProfile,
-        route_id: str,
-        target_capability: str,
-        commit: ExactClinicalCommit,
-        bind: ProtectedClinicalBind | None,
-        original_decision: str,
-        control_contract_version: str,
-        now: datetime,
-        break_glass: BreakGlassAuthority | None = None,
-    ) -> WholeStackEvidence:
+    def execute(self, *, context: WholeStackAuthorityContext, supplied_profile: DeploymentBoundaryProfile,
+                route_id: str, target_capability: str, commit: ExactClinicalCommit,
+                bind: ProtectedClinicalBind | None, original_decision: str,
+                control_contract_version: str, now: datetime,
+                break_glass: BreakGlassAuthority | None = None) -> WholeStackEvidence:
         identity_values = (
-            context.distributed_deployment_id,
-            context.recovery_deployment_id,
-            context.evidence_deployment_id,
-            context.policy_deployment_id,
-            context.evidence_subject_ref,
-            context.evidence_product_identifier,
-            context.evidence_product_version,
-            context.authority_commit_binding_hash,
+            context.distributed_deployment_id, context.recovery_deployment_id,
+            context.evidence_deployment_id, context.policy_deployment_id,
+            context.evidence_subject_ref, context.evidence_product_identifier,
+            context.evidence_product_version, context.authority_commit_binding_hash,
         )
         if any(value is None for value in identity_values):
             return self._blocked("IDENTITY_COHERENCE", "required cross-layer identity binding absent", indeterminate=True)
@@ -224,6 +198,9 @@ class WholeStackExecutionCoordinator:
         }
         effective_now = now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
         effective_now = effective_now.astimezone(timezone.utc)
+        if context.distributed_lease_id is None:
+            return self._blocked("COMPOSITION_EVIDENCE", "current distributed lease unavailable", indeterminate=True)
+
         for evidence in context.layer_evidence:
             if evidence.producer_id != EXPECTED_LAYER_PRODUCERS[evidence.layer]:
                 return self._blocked("COMPOSITION_EVIDENCE", f"untrusted producer for {evidence.layer}")
@@ -235,6 +212,27 @@ class WholeStackExecutionCoordinator:
                 return self._blocked("COMPOSITION_EVIDENCE", f"consequence binding mismatch for {evidence.layer}")
             if evidence.status != expected_statuses[evidence.layer]:
                 return self._blocked("COMPOSITION_EVIDENCE", f"status disagreement for {evidence.layer}")
+
+            version_dimensions = (
+                evidence.authority_epoch, evidence.authority_lease_id,
+                evidence.runtime_policy_version, evidence.rule_catalogue_version,
+                evidence.control_contract_version, evidence.deployment_profile_version,
+            )
+            if any(value is None for value in version_dimensions):
+                return self._blocked("COMPOSITION_EVIDENCE", f"fencing/version binding absent for {evidence.layer}", indeterminate=True)
+            if evidence.authority_epoch != context.current_distributed_epoch:
+                return self._blocked("COMPOSITION_EVIDENCE", f"authority epoch mismatch for {evidence.layer}")
+            if evidence.authority_lease_id != context.distributed_lease_id:
+                return self._blocked("COMPOSITION_EVIDENCE", f"authority lease mismatch for {evidence.layer}")
+            if evidence.runtime_policy_version != context.authority_policy_version:
+                return self._blocked("COMPOSITION_EVIDENCE", f"runtime policy mismatch for {evidence.layer}")
+            if evidence.rule_catalogue_version != context.authority_rule_catalogue_version:
+                return self._blocked("COMPOSITION_EVIDENCE", f"rule catalogue mismatch for {evidence.layer}")
+            if evidence.control_contract_version != control_contract_version:
+                return self._blocked("COMPOSITION_EVIDENCE", f"control contract mismatch for {evidence.layer}")
+            if evidence.deployment_profile_version != self.enforcer.active_profile.profile_version:
+                return self._blocked("COMPOSITION_EVIDENCE", f"deployment profile version mismatch for {evidence.layer}")
+
             try:
                 observed_at = _parse_ts(evidence.observed_at)
             except Exception:
@@ -244,10 +242,6 @@ class WholeStackExecutionCoordinator:
                 return self._blocked("COMPOSITION_EVIDENCE", f"future observation for {evidence.layer}")
             if age > COMPOSITION_EVIDENCE_MAX_AGE_SECONDS:
                 return self._blocked("COMPOSITION_EVIDENCE", f"stale observation for {evidence.layer}")
-
-        # Baseline for hostile pass 5: the signed evidence schema carries
-        # fencing/version dimensions, but final-boundary enforcement is not yet
-        # added here. Pass-5 tests determine whether that omission is material.
 
         if context.distributed_status is None:
             return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority result absent", indeterminate=True)
@@ -318,14 +312,10 @@ class WholeStackExecutionCoordinator:
                 return self._blocked("POLICY_BINDING", "exact commit rule catalogue differs from authority context")
 
         deployment = self.enforcer.enforce(
-            supplied_profile=supplied_profile,
-            route_id=route_id,
-            target_capability=target_capability,
-            commit=commit,
-            bind=bind,
+            supplied_profile=supplied_profile, route_id=route_id,
+            target_capability=target_capability, commit=commit, bind=bind,
             original_decision=original_decision,
-            control_contract_version=control_contract_version,
-            now=now,
+            control_contract_version=control_contract_version, now=now,
             break_glass=break_glass,
         )
         return WholeStackEvidence(deployment.status, "DEPLOYMENT", deployment.detail, deployment)
