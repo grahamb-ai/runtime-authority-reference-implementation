@@ -237,8 +237,8 @@ class WholeStackExecutionCoordinator:
             "POLICY_TRANSITION": context.policy_status or "ABSENT",
             "PRESENT_STANDING": context.present_standing_status or "ABSENT",
         }
-        if context.distributed_lease_id is None:
-            return self._blocked("COMPOSITION_EVIDENCE", "current distributed lease unavailable", indeterminate=True)
+        if not isinstance(context.distributed_lease_id, str) or not context.distributed_lease_id.strip():
+            return self._blocked("COMPOSITION_EVIDENCE", "current distributed lease identity invalid", indeterminate=True)
         if type(context.distributed_authority_epoch) is not int or context.distributed_authority_epoch <= 0:
             return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority epoch must be a positive integer")
         if type(context.current_distributed_epoch) is not int or context.current_distributed_epoch <= 0:
@@ -265,6 +265,8 @@ class WholeStackExecutionCoordinator:
                 return self._blocked("COMPOSITION_EVIDENCE", f"fencing/version binding absent for {evidence.layer}", indeterminate=True)
             if type(evidence.authority_epoch) is not int or evidence.authority_epoch <= 0:
                 return self._blocked("COMPOSITION_EVIDENCE", f"invalid authority epoch type/value for {evidence.layer}")
+            if not isinstance(evidence.authority_lease_id, str) or not evidence.authority_lease_id.strip():
+                return self._blocked("COMPOSITION_EVIDENCE", f"invalid authority lease identity for {evidence.layer}")
             if type(evidence.deployment_profile_version) is not int or evidence.deployment_profile_version <= 0:
                 return self._blocked("COMPOSITION_EVIDENCE", f"invalid deployment profile version type/value for {evidence.layer}")
             if evidence.authority_epoch != context.current_distributed_epoch:
@@ -331,8 +333,6 @@ class WholeStackExecutionCoordinator:
         if context.present_standing_status != "ALLOW":
             return self._blocked("PRESENT_STANDING", f"present standing not admissible: {context.present_standing_status}")
 
-        # The exact consequence's policy/rules basis must remain coherent for
-        # every execution path, including separate break-glass authority.
         if commit.runtime_policy_version != context.authority_policy_version:
             return self._blocked("POLICY_BINDING", "exact commit policy basis differs from authority context")
         if commit.rule_catalogue_version != context.authority_rule_catalogue_version:
