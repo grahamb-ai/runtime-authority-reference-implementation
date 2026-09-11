@@ -16,6 +16,11 @@ class WholeStackAuthorityContext:
     authority_rule_catalogue_version: str
     distributed_authority_epoch: int | None = None
     current_distributed_epoch: int | None = None
+    # Exposed for the second whole-stack hostile pass.  They are deliberately
+    # not yet made decisive here: the frozen hostile suite determines whether
+    # that omission is exploitable before remediation.
+    recovery_authority_status: str | None = None
+    evidence_contract_status: str | None = None
 
 
 @dataclass(frozen=True)
@@ -63,9 +68,6 @@ class WholeStackExecutionCoordinator:
         now: datetime,
         break_glass: BreakGlassAuthority | None = None,
     ) -> WholeStackEvidence:
-        # Distributed execution authority is decisive for both normal and
-        # break-glass paths. Missing or indeterminate distributed state never
-        # silently degrades to local authority.
         if context.distributed_status is None:
             return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority result absent", indeterminate=True)
         if context.distributed_status == "INDETERMINATE":
@@ -77,8 +79,6 @@ class WholeStackExecutionCoordinator:
         if context.distributed_authority_epoch != context.current_distributed_epoch:
             return self._blocked("DISTRIBUTED_AUTHORITY", "execution context fenced by current distributed authority epoch")
 
-        # Policy transition semantics remain authoritative at the final
-        # composition boundary. REVALIDATE is not equivalent to ALLOW.
         if context.policy_status is None:
             return self._blocked("POLICY_TRANSITION", "policy-transition result absent", indeterminate=True)
         if context.policy_status == "INDETERMINATE":
@@ -88,8 +88,6 @@ class WholeStackExecutionCoordinator:
         if context.policy_status != "ALLOW":
             return self._blocked("POLICY_TRANSITION", f"policy transition prevents outstanding authority: {context.policy_status}")
 
-        # Present standing must still be established at the composed execution
-        # boundary.
         if context.present_standing_status is None:
             return self._blocked("PRESENT_STANDING", "present-standing result absent", indeterminate=True)
         if context.present_standing_status == "INDETERMINATE":
@@ -97,8 +95,6 @@ class WholeStackExecutionCoordinator:
         if context.present_standing_status != "ALLOW":
             return self._blocked("PRESENT_STANDING", f"present standing not admissible: {context.present_standing_status}")
 
-        # For the normal ALLOW path, bind identity, policy basis and temporal
-        # validity are re-established immediately before deployment enforcement.
         if original_decision == "ALLOW":
             if bind is None:
                 return self._blocked("PROTECTED_BIND", "ALLOW path missing protected bind")
