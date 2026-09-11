@@ -18,6 +18,18 @@ class WholeStackAuthorityContext:
     current_distributed_epoch: int | None = None
     recovery_authority_status: str | None = None
     evidence_contract_status: str | None = None
+    # Cross-layer identity fields are carried explicitly so hostile review can
+    # test whether individually valid results from different contexts can be
+    # assembled into one execution. They are intentionally not enforced by
+    # this baseline commit; pass-3 hostile tests determine that requirement.
+    distributed_deployment_id: str | None = None
+    recovery_deployment_id: str | None = None
+    evidence_deployment_id: str | None = None
+    policy_deployment_id: str | None = None
+    evidence_subject_ref: str | None = None
+    evidence_product_identifier: str | None = None
+    evidence_product_version: str | None = None
+    authority_commit_binding_hash: str | None = None
 
 
 @dataclass(frozen=True)
@@ -75,10 +87,6 @@ class WholeStackExecutionCoordinator:
         if context.distributed_authority_epoch != context.current_distributed_epoch:
             return self._blocked("DISTRIBUTED_AUTHORITY", "execution context fenced by current distributed authority epoch")
 
-        # HARDEN-006 recovery authority is a separate prerequisite from the
-        # HARDEN-009 distributed lease/epoch state. A locally healthy or
-        # distributed-active execution path cannot compensate for failed,
-        # missing or indeterminate recovery authority.
         if context.recovery_authority_status is None:
             return self._blocked("RECOVERY_AUTHORITY", "recovery authority result absent", indeterminate=True)
         if context.recovery_authority_status == "INDETERMINATE":
@@ -86,8 +94,6 @@ class WholeStackExecutionCoordinator:
         if context.recovery_authority_status != "ACTIVE":
             return self._blocked("RECOVERY_AUTHORITY", f"recovery authority not active: {context.recovery_authority_status}")
 
-        # HARDEN-004 contracted evidence remains decisive at the final
-        # composition boundary. ESCALATE is not silently converted to ALLOW.
         if context.evidence_contract_status is None:
             return self._blocked("EVIDENCE_CONTRACT", "contracted evidence result absent", indeterminate=True)
         if context.evidence_contract_status == "INDETERMINATE":
