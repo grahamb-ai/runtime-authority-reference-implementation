@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import sqlite3
 import threading
-from dataclasses import dataclass, replace
-from datetime import datetime
+from dataclasses import asdict, dataclass, replace
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable
 
@@ -11,6 +13,9 @@ from .executor import EPRSimulator
 from .models import ExactClinicalCommit
 from .runtime import HarnessClock, verify_bind_integrity
 from .store import BindStore
+
+EXPECTED_STATE_SOURCE = "HC-STATE-01"
+MAX_STANDING_AGE_SECONDS = 30
 
 
 @dataclass(frozen=True)
@@ -28,6 +33,11 @@ class PresentStandingSnapshot:
     @property
     def position(self) -> tuple[int, int]:
         return (self.state_epoch, self.sequence)
+
+    @property
+    def fingerprint(self) -> str:
+        payload = json.dumps(asdict(self), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 class MutableStandingProvider:
@@ -65,7 +75,8 @@ class StateWatermarkStore:
         with self._connect() as conn:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS standing_watermark ("
-                "source_id TEXT PRIMARY KEY, state_epoch INTEGER NOT NULL, sequence INTEGER NOT NULL)"
+                "source_id TEXT PRIMARY KEY, state_epoch INTEGER NOT NULL, sequence INTEGER NOT NULL, "
+                "fingerprint TEXT NOT NULL)"
             )
 
     def get(self, source_id: str) -> tuple[int, int] | None:
@@ -78,26 +89,30 @@ class StateWatermarkStore:
             return None
         return (row["state_epoch"], row["sequence"])
 
-    def accept(self, snapshot: PresentStandingSnapshot) -> bool:
+    def accept(self, snapshot: PresentStandingSnapshot) -> str:
         conn = self._connect()
         try:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
-                "SELECT state_epoch, sequence FROM standing_watermark WHERE source_id=?",
+                "SELECT state_epoch, sequence, fingerprint FROM standing_watermark WHERE source_id=?",
                 (snapshot.source_id,),
             ).fetchone()
             if row is not None:
                 current = (row["state_epoch"], row["sequence"])
                 if snapshot.position < current:
                     conn.execute("ROLLBACK")
-                    return False
+                    return "ROLLBACK"
+                if snapshot.position == current and snapshot.fingerprint != row["fingerprint"]:
+                    conn.execute("ROLLBACK")
+                    return "EQUIVOCATION"
             conn.execute(
-                "INSERT INTO standing_watermark(source_id,state_epoch,sequence) VALUES (?,?,?) "
-                "ON CONFLICT(source_id) DO UPDATE SET state_epoch=excluded.state_epoch, sequence=excluded.sequence",
-                (snapshot.source_id, snapshot.state_epoch, snapshot.sequence),
+                "INSERT INTO standing_watermark(source_id,state_epoch,sequence,fingerprint) VALUES (?,?,?,?) "
+                "ON CONFLICT(source_id) DO UPDATE SET state_epoch=excluded.state_epoch, "
+                "sequence=excluded.sequence, fingerprint=excluded.fingerprint",
+                (snapshot.source_id, snapshot.state_epoch, snapshot.sequence, snapshot.fingerprint),
             )
             conn.execute("COMMIT")
-            return True
+            return "ACCEPTED"
         except Exception:
             try:
                 conn.execute("ROLLBACK")
@@ -117,6 +132,8 @@ class ContinuityProtectedExecutor:
         standing_provider: MutableStandingProvider,
         watermark_store: StateWatermarkStore,
         before_final_check: Callable[[], None] | None = None,
+        expected_source_id: str = EXPECTED_STATE_SOURCE,
+        max_standing_age_seconds: int = MAX_STANDING_AGE_SECONDS,
     ):
         self.store = store
         self.simulator = simulator
@@ -124,6 +141,14 @@ class ContinuityProtectedExecutor:
         self.standing_provider = standing_provider
         self.watermark_store = watermark_store
         self.before_final_check = before_final_check
+        self.expected_source_id = expected_source_id
+        self.max_standing_age_seconds = max_standing_age_seconds
+
+    def _standing_fresh(self, standing: PresentStandingSnapshot, now: datetime) -> bool:
+        observed = datetime.fromisoformat(standing.observed_at)
+        if observed > now:
+            return False
+        return now - observed <= timedelta(seconds=self.max_standing_age_seconds)
 
     def _standing_valid(self, standing: PresentStandingSnapshot, commit: ExactClinicalCommit) -> bool:
         return (
@@ -133,6 +158,20 @@ class ContinuityProtectedExecutor:
             and standing.monitoring_clear
             and standing.policy_version == commit.runtime_policy_version
         )
+
+    def _accept_standing(self, standing: PresentStandingSnapshot, now: datetime) -> str | None:
+        if standing.source_id != self.expected_source_id:
+            return "STATE_SOURCE_MISMATCH"
+        if not standing.available:
+            return "PRESENT_STANDING_UNAVAILABLE"
+        if not self._standing_fresh(standing, now):
+            return "PRESENT_STANDING_STALE"
+        accepted = self.watermark_store.accept(standing)
+        if accepted == "ROLLBACK":
+            return "STATE_ROLLBACK_DETECTED"
+        if accepted == "EQUIVOCATION":
+            return "STATE_EQUIVOCATION_DETECTED"
+        return None
 
     def execute(self, bind_id: str, attempted_commit: ExactClinicalCommit) -> str:
         current = self.store.get(bind_id)
@@ -158,10 +197,9 @@ class ContinuityProtectedExecutor:
             return "BINDING_MISMATCH"
 
         first = self.standing_provider.read()
-        if not first.available:
-            return "PRESENT_STANDING_UNAVAILABLE"
-        if not self.watermark_store.accept(first):
-            return "STATE_ROLLBACK_DETECTED"
+        standing_error = self._accept_standing(first, now)
+        if standing_error:
+            return standing_error
         if not self._standing_valid(first, attempted_commit):
             return "PRESENT_STANDING_INVALID"
 
@@ -177,12 +215,10 @@ class ContinuityProtectedExecutor:
             return "BIND_EXPIRED"
 
         second = self.standing_provider.read()
-        if not second.available:
+        standing_error = self._accept_standing(second, final_now)
+        if standing_error:
             self.store.set_status(bind.bind_id, "INVALIDATED", final_now.isoformat())
-            return "PRESENT_STANDING_UNAVAILABLE"
-        if not self.watermark_store.accept(second):
-            self.store.set_status(bind.bind_id, "INVALIDATED", final_now.isoformat())
-            return "STATE_ROLLBACK_DETECTED"
+            return standing_error
         if not self._standing_valid(second, attempted_commit):
             self.store.set_status(bind.bind_id, "INVALIDATED", final_now.isoformat())
             if second.position != first.position or second != first:
