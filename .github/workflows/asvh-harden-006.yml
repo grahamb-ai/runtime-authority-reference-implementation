@@ -28,3 +28,16 @@ jobs:
         run: pytest -q tests/test_asvh_harden_005.py tests/test_asvh_harden_005_hostile.py
       - name: Run frozen HARDEN-006 CTS
         run: pytest -q tests/test_asvh_harden_006.py
+
+  hostile-review:
+    needs: independence-recovery-conformance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: pip install pytest
+      - name: Run HARDEN-006 hostile review
+        run: pytest -q tests/test_asvh_harden_006_hostile.py
