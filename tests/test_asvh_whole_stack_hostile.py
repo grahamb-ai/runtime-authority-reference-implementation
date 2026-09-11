@@ -33,6 +33,7 @@ def valid_bind(commit=None):
 
 
 def context(distributed="ACTIVE", policy="ALLOW", standing="ALLOW", *, authority_policy="HC-POL-1.0", rules="ASVH-RC-1.0", epoch=2, current_epoch=2, recovery="ACTIVE", evidence="ALLOW"):
+    c = baseline_commit()
     return WholeStackAuthorityContext(
         distributed_status=distributed,
         policy_status=policy,
@@ -43,6 +44,14 @@ def context(distributed="ACTIVE", policy="ALLOW", standing="ALLOW", *, authority
         current_distributed_epoch=current_epoch,
         recovery_authority_status=recovery,
         evidence_contract_status=evidence,
+        distributed_deployment_id="DEP-01",
+        recovery_deployment_id="DEP-01",
+        evidence_deployment_id="DEP-01",
+        policy_deployment_id="DEP-01",
+        evidence_subject_ref=c.patient_ref,
+        evidence_product_identifier=c.product_identifier,
+        evidence_product_version=c.product_version,
+        authority_commit_binding_hash=c.commit_binding_hash,
     )
 
 
