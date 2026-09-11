@@ -20,6 +20,7 @@ BREAK_GLASS_INTEGRITY_PROFILE = "BG-HMAC-SHA256-1"
 VALID_RUNTIME_DECISIONS = ("ALLOW", "ESCALATE", "REFUSE")
 SUPPORTED_EXACT_COMMIT_SCHEMA = "ECC-1.0"
 SUPPORTED_PROTECTED_BIND_SCHEMA = "PCB-1.0"
+SUPPORTED_RUNTIME_AUTHORITY_VERSION = "ASVH-RA-1.0"
 
 
 @dataclass(frozen=True)
@@ -175,6 +176,8 @@ def _valid_bind_semantics(bind: ProtectedClinicalBind, commit: ExactClinicalComm
         return False
     if bind.schema_version != SUPPORTED_PROTECTED_BIND_SCHEMA:
         return False
+    if bind.runtime_authority_version != SUPPORTED_RUNTIME_AUTHORITY_VERSION:
+        return False
     if bind.materiality_profile != commit.materiality_profile:
         return False
     if bind.canonicalisation_profile != commit.canonicalisation_profile:
@@ -209,15 +212,16 @@ class DeploymentEnforcer:
     its declared exact-consequence schema, materiality profile and
     canonicalisation profile. Runtime decision vocabulary is closed and exact.
     Protected binds must carry non-blank semantic identity, use the supported
-    protected-bind schema, and retain the exact commit materiality and
-    canonicalisation basis. Break-glass authority must be integrity-bound,
-    carry an authority identity explicitly admitted by the active profile and a
-    non-blank override identifier, use timezone-aware temporal evidence, remain
-    inside the profile-bound maximum validity interval, and carry explicit
-    SINGLE_USE semantics. The validity interval is half-open: issued_at is
-    inclusive and expires_at is exclusive. Consumption is enforced atomically
-    inside this enforcer by default and can be extended across enforcer
-    instances and restart by supplying a shared BreakGlassUseStore.
+    protected-bind schema and runtime-authority version, and retain the exact
+    commit materiality and canonicalisation basis. Break-glass authority must
+    be integrity-bound, carry an authority identity explicitly admitted by the
+    active profile and a non-blank override identifier, use timezone-aware
+    temporal evidence, remain inside the profile-bound maximum validity
+    interval, and carry explicit SINGLE_USE semantics. The validity interval is
+    half-open: issued_at is inclusive and expires_at is exclusive. Consumption
+    is enforced atomically inside this enforcer by default and can be extended
+    across enforcer instances and restart by supplying a shared
+    BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
     external monotonic storage or distributed consensus.
