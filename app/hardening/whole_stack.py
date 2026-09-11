@@ -138,6 +138,10 @@ def _parse_ts(value: str) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+def _nonblank(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
 class WholeStackExecutionCoordinator:
     """Reference composition boundary for HARDEN-001 through HARDEN-009.
 
@@ -190,6 +194,27 @@ class WholeStackExecutionCoordinator:
         if now.tzinfo is None or now.utcoffset() is None:
             return self._blocked("TRUSTED_TIME", "execution time must be timezone-aware", indeterminate=True)
         effective_now = now.astimezone(timezone.utc)
+
+        critical_commit_identity = {
+            "commit_id": commit.commit_id,
+            "patient_ref": commit.patient_ref,
+            "encounter_ref": commit.encounter_ref,
+            "consultation_ref": commit.consultation_ref,
+            "clinician_ref": commit.clinician_ref,
+            "target_system": commit.target_system,
+            "target_instance": commit.target_instance,
+            "target_record_ref": commit.target_record_ref,
+            "product_identifier": commit.product_identifier,
+            "product_version": commit.product_version,
+            "runtime_policy_version": commit.runtime_policy_version,
+            "rule_catalogue_version": commit.rule_catalogue_version,
+        }
+        invalid_commit_identity = [name for name, value in critical_commit_identity.items() if not _nonblank(value)]
+        if invalid_commit_identity:
+            return self._blocked(
+                "CONSEQUENCE_IDENTITY",
+                f"exact consequence identity invalid: {','.join(invalid_commit_identity)}",
+            )
 
         identity_values = (
             context.distributed_deployment_id, context.recovery_deployment_id,
