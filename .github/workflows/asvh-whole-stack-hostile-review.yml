@@ -66,3 +66,5 @@ jobs:
         run: pytest -q tests/test_asvh_whole_stack_hostile_v11.py
       - name: Run frozen whole-stack hostile review pass 12
         run: pytest -q tests/test_asvh_whole_stack_hostile_v12.py
+      - name: Run frozen whole-stack hostile review pass 13
+        run: pytest -q tests/test_asvh_whole_stack_hostile_v13.py
