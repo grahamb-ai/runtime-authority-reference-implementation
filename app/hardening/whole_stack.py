@@ -3,11 +3,13 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from .deployment_enforcement import DeploymentEnforcer, EnforcementEvidence, DeploymentBoundaryProfile, BreakGlassAuthority
 from .models import ExactClinicalCommit, ProtectedClinicalBind
+from .runtime import verify_bind_integrity
 
 REFERENCE_COMPOSITION_KEY = b"asvh-reference-composition-only"
 COMPOSITION_EVIDENCE_MAX_AGE_SECONDS = 30
@@ -140,6 +142,8 @@ class WholeStackExecutionCoordinator:
 
     def __init__(self, enforcer: DeploymentEnforcer):
         self.enforcer = enforcer
+        self._bind_lock = threading.Lock()
+        self._claimed_bind_ids: set[str] = set()
 
     @staticmethod
     def _blocked(layer: str, detail: str, *, indeterminate: bool = False) -> WholeStackEvidence:
@@ -310,6 +314,17 @@ class WholeStackExecutionCoordinator:
                 return self._blocked("POLICY_BINDING", "exact commit policy basis differs from authority context")
             if commit.rule_catalogue_version != context.authority_rule_catalogue_version:
                 return self._blocked("POLICY_BINDING", "exact commit rule catalogue differs from authority context")
+            if not verify_bind_integrity(bind):
+                return self._blocked("PROTECTED_BIND", "protected bind integrity invalid")
+            if bind.use_semantics != "SINGLE_USE":
+                return self._blocked("PROTECTED_BIND", "protected bind use semantics not single-use")
+            # Reference-harness coordinator-instance claim. Claiming before the
+            # deployment call is conservative: a later downstream prevention
+            # still burns the bind. This is not durable/distributed replay state.
+            with self._bind_lock:
+                if bind.bind_id in self._claimed_bind_ids:
+                    return self._blocked("PROTECTED_BIND", "protected bind replay rejected")
+                self._claimed_bind_ids.add(bind.bind_id)
 
         deployment = self.enforcer.enforce(
             supplied_profile=supplied_profile, route_id=route_id,
