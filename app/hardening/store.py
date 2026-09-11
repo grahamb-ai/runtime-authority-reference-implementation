@@ -124,30 +124,72 @@ class BindStore:
 class BreakGlassUseStore:
     """Reference durable replay store for single-use break-glass authority.
 
-    Multiple enforcer instances that share this store atomically consume the
-    same override identifier. This demonstrates cross-instance and restart
-    replay resistance inside one SQLite-backed failure domain only. It is not a
-    production distributed consensus or external monotonic-anchor claim.
+    The operational replay database is paired with a separate consumption
+    anchor. The anchor is written first, so rollback or replacement of the
+    operational replay database alone cannot silently resurrect a consumed
+    override inside the harness boundary.
+
+    This models a stronger failure domain only. It is not production external
+    monotonic storage, distributed consensus, hardware-backed persistence, or
+    proof against coherent rollback of both the replay database and its anchor.
     """
 
-    def __init__(self, db_path: str | Path):
-        self.db_path = str(db_path)
+    def __init__(self, db_path: str | Path, anchor_path: str | Path | None = None):
+        path = Path(db_path)
+        self.db_path = str(path)
+        self.anchor_path = str(anchor_path or (path.parent / f".{path.name}.use-anchor.sqlite"))
         self._init_db()
+        self._init_anchor()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, timeout=10, isolation_level=None)
+    def _connect(self, path: str | None = None) -> sqlite3.Connection:
+        conn = sqlite3.connect(path or self.db_path, timeout=10, isolation_level=None)
         conn.row_factory = sqlite3.Row
         return conn
 
     def _init_db(self) -> None:
-        with self._connect() as conn:
+        with self._connect(self.db_path) as conn:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS consumed_break_glass ("
                 "override_id TEXT PRIMARY KEY, consumed_at TEXT NOT NULL)"
             )
 
+    def _init_anchor(self) -> None:
+        with self._connect(self.anchor_path) as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS consumed_break_glass_anchor ("
+                "override_id TEXT PRIMARY KEY, consumed_at TEXT NOT NULL)"
+            )
+
+    def _anchor_consume(self, override_id: str, now_iso: str) -> bool:
+        conn = self._connect(self.anchor_path)
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            cur = conn.execute(
+                "INSERT OR IGNORE INTO consumed_break_glass_anchor(override_id,consumed_at) VALUES (?,?)",
+                (override_id, now_iso),
+            )
+            if cur.rowcount != 1:
+                conn.execute("ROLLBACK")
+                return False
+            conn.execute("COMMIT")
+            return True
+        except Exception:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+        finally:
+            conn.close()
+
     def consume(self, override_id: str, now_iso: str) -> bool:
-        conn = self._connect()
+        # Anchor first. A partial failure may conservatively burn the override,
+        # but rollback/replacement of only the operational replay database cannot
+        # make a previously consumed override executable again.
+        if not self._anchor_consume(override_id, now_iso):
+            return False
+
+        conn = self._connect(self.db_path)
         try:
             conn.execute("BEGIN IMMEDIATE")
             cur = conn.execute(
