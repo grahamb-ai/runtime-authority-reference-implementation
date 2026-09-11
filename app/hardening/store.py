@@ -119,3 +119,51 @@ class BindStore:
                 "UPDATE protected_bind SET status=?, updated_at=? WHERE bind_id=?",
                 (status, now_iso, bind_id),
             )
+
+
+class BreakGlassUseStore:
+    """Reference durable replay store for single-use break-glass authority.
+
+    Multiple enforcer instances that share this store atomically consume the
+    same override identifier. This demonstrates cross-instance and restart
+    replay resistance inside one SQLite-backed failure domain only. It is not a
+    production distributed consensus or external monotonic-anchor claim.
+    """
+
+    def __init__(self, db_path: str | Path):
+        self.db_path = str(db_path)
+        self._init_db()
+
+    def _connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path, timeout=10, isolation_level=None)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_db(self) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS consumed_break_glass ("
+                "override_id TEXT PRIMARY KEY, consumed_at TEXT NOT NULL)"
+            )
+
+    def consume(self, override_id: str, now_iso: str) -> bool:
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            cur = conn.execute(
+                "INSERT OR IGNORE INTO consumed_break_glass(override_id,consumed_at) VALUES (?,?)",
+                (override_id, now_iso),
+            )
+            if cur.rowcount != 1:
+                conn.execute("ROLLBACK")
+                return False
+            conn.execute("COMMIT")
+            return True
+        except Exception:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+        finally:
+            conn.close()
