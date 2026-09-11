@@ -11,6 +11,13 @@ def _parse_ts(value: str) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+def _version_key(value: str) -> tuple[int, ...]:
+    parts = value.split(".")
+    if not parts or any(not p.isdigit() for p in parts):
+        raise ValueError("policy version is not a dotted numeric version")
+    return tuple(int(p) for p in parts)
+
+
 @dataclass(frozen=True)
 class PolicyState:
     policy_id: str
@@ -83,13 +90,16 @@ class PolicyHighWatermark:
 
     def accept_policy(self, state: PolicyState):
         key = (state.policy_id, state.deployment_profile_id)
+        current_key = _version_key(state.policy_version)
         prior = self._max_version.get(key)
-        if prior is None or state.policy_version >= prior:
+        if prior is None or current_key >= _version_key(prior):
             self._max_version[key] = state.policy_version
 
     def is_rollback(self, state: PolicyState) -> bool:
         prior = self._max_version.get((state.policy_id, state.deployment_profile_id))
-        return prior is not None and state.policy_version < prior
+        if prior is None:
+            return False
+        return _version_key(state.policy_version) < _version_key(prior)
 
 
 class PolicyTransitionGate:
@@ -115,22 +125,26 @@ class PolicyTransitionGate:
 
         if authority.invalidated or self.watermark.was_invalidated(authority.authority_id):
             return result("PREVENTED", "outstanding authority previously invalidated")
-
         if authority.policy_id != active.policy_id:
             return result("PREVENTED", "policy identity mismatch")
         if (authority.deployment_profile_id, authority.deployment_profile_version) != (active.deployment_profile_id, active.deployment_profile_version):
             return result("PREVENTED", "deployment profile mismatch")
-        if self.watermark.is_rollback(active):
-            return result("PREVENTED", "active policy state is behind accepted high-watermark")
+        try:
+            if self.watermark.is_rollback(active):
+                return result("PREVENTED", "active policy state is behind accepted high-watermark")
+        except Exception:
+            return result("INDETERMINATE", "policy version is not comparable")
 
         same_basis = authority.policy_version == active.policy_version and authority.ruleset_version == active.ruleset_version
         if same_basis and transition is None:
-            self.watermark.accept_policy(active)
+            try:
+                self.watermark.accept_policy(active)
+            except Exception:
+                return result("INDETERMINATE", "policy version is not comparable")
             return result("ALLOW", "outstanding authority remains on unchanged policy basis")
 
         if transition is None:
             return result("INDETERMINATE", "policy basis changed without transition semantics")
-
         if not self.watermark.accept_transition(transition):
             return result("INDETERMINATE", "contradictory transition identity", tid=transition.transition_id)
         if (transition.deployment_profile_id, transition.deployment_profile_version) != (active.deployment_profile_id, active.deployment_profile_version):
@@ -146,24 +160,35 @@ class PolicyTransitionGate:
 
         if now < effective:
             if same_basis:
-                self.watermark.accept_policy(active)
+                try:
+                    self.watermark.accept_policy(active)
+                except Exception:
+                    return result("INDETERMINATE", "policy version is not comparable", tid=transition.transition_id)
                 return result("ALLOW", "transition not yet effective; existing policy basis remains active", tid=transition.transition_id)
             return result("PREVENTED", "future transition cannot authorise changed policy basis early", tid=transition.transition_id)
 
-        transition_class = transition.transition_class
         if authority.break_glass and not transition.break_glass_compatible:
             return result("PREVENTED", "break-glass authority requires separate transition semantics", tid=transition.transition_id)
-        if transition_class == "NON_MATERIAL":
+        if transition.transition_class == "NON_MATERIAL":
             if not transition.compatibility_explicit:
                 return result("PREVENTED", "non-material transition lacks explicit compatibility", tid=transition.transition_id)
-            self.watermark.accept_policy(active)
+            try:
+                self.watermark.accept_policy(active)
+            except Exception:
+                return result("INDETERMINATE", "policy version is not comparable", tid=transition.transition_id)
             return result("ALLOW", "explicitly compatible non-material transition", tid=transition.transition_id)
-        if transition_class == "REVALIDATE":
-            self.watermark.accept_policy(active)
+        if transition.transition_class == "REVALIDATE":
+            try:
+                self.watermark.accept_policy(active)
+            except Exception:
+                return result("INDETERMINATE", "policy version is not comparable", tid=transition.transition_id)
             return result("REVALIDATE", "outstanding authority requires new determination", revalidate=True, tid=transition.transition_id)
-        if transition_class == "INVALIDATE":
+        if transition.transition_class == "INVALIDATE":
             self.watermark.mark_invalidated(authority.authority_id)
-            self.watermark.accept_policy(active)
+            try:
+                self.watermark.accept_policy(active)
+            except Exception:
+                return result("INDETERMINATE", "policy version is not comparable", tid=transition.transition_id)
             return result("PREVENTED", "outstanding authority invalidated by policy transition", tid=transition.transition_id)
         return result("INDETERMINATE", "unsupported or ambiguous transition semantics", tid=transition.transition_id)
 
