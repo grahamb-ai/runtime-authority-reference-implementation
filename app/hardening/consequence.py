@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .models import AuthorityReceipt, ExactClinicalCommit, ProtectedClinicalBind
+from .runtime import verify_bind_integrity
 
 
 def consequence_key(commit: ExactClinicalCommit) -> str:
@@ -70,11 +71,29 @@ class ReconcilableEPRSimulator:
             return self._attempts.get(key, 0)
 
 
+def authority_chain_valid(bind: ProtectedClinicalBind, receipt: AuthorityReceipt, commit: ExactClinicalCommit) -> bool:
+    return (
+        verify_bind_integrity(bind)
+        and receipt.decision == "ALLOW"
+        and bind.authority_receipt_id == receipt.receipt_id
+        and bind.commit_id == commit.commit_id
+        and bind.commit_binding_hash == commit.commit_binding_hash
+        and receipt.commit_id == commit.commit_id
+        and receipt.commit_binding_hash == commit.commit_binding_hash
+        and bind.runtime_policy_version == commit.runtime_policy_version
+        and receipt.runtime_policy_version == commit.runtime_policy_version
+        and bind.rule_catalogue_version == commit.rule_catalogue_version
+        and receipt.rule_catalogue_version == commit.rule_catalogue_version
+    )
+
+
 class ConsequenceReconciler:
     def __init__(self, target: ReconcilableEPRSimulator):
         self.target = target
 
-    def _evidence(self, status: str, bind: ProtectedClinicalBind, receipt: AuthorityReceipt, commit: ExactClinicalCommit, key: str, *, target_reference: str | None = None, detail: str = "") -> ClinicalConsequenceEvidence:
+    def _evidence(self, status: str, bind: ProtectedClinicalBind, receipt: AuthorityReceipt, commit: ExactClinicalCommit, key: str, *, target_reference: str | None = None, detail: str = "", provenance_level: str | None = None) -> ClinicalConsequenceEvidence:
+        if provenance_level is None:
+            provenance_level = "CE-3-TARGET-READBACK" if target_reference else "CE-2-TARGET-ABSENCE"
         return ClinicalConsequenceEvidence(
             consequence_key=key,
             consequence_status=status,
@@ -83,14 +102,19 @@ class ConsequenceReconciler:
             commit_id=commit.commit_id,
             commit_binding_hash=commit.commit_binding_hash,
             target_record_ref=commit.target_record_ref,
-            provenance_level="CE-3-TARGET-READBACK" if target_reference else "CE-2-TARGET-ABSENCE",
+            provenance_level=provenance_level,
             target_reference=target_reference,
             detail=detail,
         )
 
     def reconcile(self, bind: ProtectedClinicalBind, receipt: AuthorityReceipt, commit: ExactClinicalCommit) -> ClinicalConsequenceEvidence:
         key = consequence_key(commit)
-        record = self.target.read_by_key(key)
+        if not authority_chain_valid(bind, receipt, commit):
+            return self._evidence("PREVENTED", bind, receipt, commit, key, detail="AUTHORITY_CHAIN_INVALID", provenance_level="CE-0-CHAIN-VALIDATION")
+        try:
+            record = self.target.read_by_key(key)
+        except TimeoutError as exc:
+            return self._evidence("INDETERMINATE", bind, receipt, commit, key, detail=f"target read-back unavailable: {exc}", provenance_level="CE-1-RECONCILIATION-UNAVAILABLE")
         if record is None:
             return self._evidence("PREVENTED", bind, receipt, commit, key, detail="authoritative simulator read-back found no consequence")
         if (
@@ -109,6 +133,18 @@ class ConsequenceAwareExecutor:
 
     def execute(self, bind: ProtectedClinicalBind, receipt: AuthorityReceipt, commit: ExactClinicalCommit, *, lose_ack: bool = False, fail_before_write: bool = False, auto_reconcile: bool = True) -> ClinicalConsequenceEvidence:
         key = consequence_key(commit)
+        if not authority_chain_valid(bind, receipt, commit):
+            return ClinicalConsequenceEvidence(
+                consequence_key=key,
+                consequence_status="PREVENTED",
+                bind_id=bind.bind_id,
+                authority_receipt_id=receipt.receipt_id,
+                commit_id=commit.commit_id,
+                commit_binding_hash=commit.commit_binding_hash,
+                target_record_ref=commit.target_record_ref,
+                provenance_level="CE-0-CHAIN-VALIDATION",
+                detail="AUTHORITY_CHAIN_INVALID",
+            )
         try:
             record = self.target.commit(key, commit, lose_ack=lose_ack, fail_before_write=fail_before_write)
             return ClinicalConsequenceEvidence(
