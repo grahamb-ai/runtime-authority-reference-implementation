@@ -16,9 +16,6 @@ class WholeStackAuthorityContext:
     authority_rule_catalogue_version: str
     distributed_authority_epoch: int | None = None
     current_distributed_epoch: int | None = None
-    # Exposed for the second whole-stack hostile pass.  They are deliberately
-    # not yet made decisive here: the frozen hostile suite determines whether
-    # that omission is exploitable before remediation.
     recovery_authority_status: str | None = None
     evidence_contract_status: str | None = None
 
@@ -41,10 +38,9 @@ def _parse_ts(value: str) -> datetime:
 class WholeStackExecutionCoordinator:
     """Reference composition boundary for HARDEN-001 through HARDEN-009.
 
-    This coordinator prevents a lower execution layer from converting an
-    upstream authority failure into a simulated governed consequence. It is a
-    reference-harness composition mechanism, not a production transaction or
-    distributed consensus boundary.
+    Upstream authority results are re-composed as decisive execution
+    prerequisites. This is a reference-harness composition mechanism, not a
+    production transaction, consensus, or NHS/EPR non-bypassability claim.
     """
 
     def __init__(self, enforcer: DeploymentEnforcer):
@@ -78,6 +74,28 @@ class WholeStackExecutionCoordinator:
             return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority epoch unavailable", indeterminate=True)
         if context.distributed_authority_epoch != context.current_distributed_epoch:
             return self._blocked("DISTRIBUTED_AUTHORITY", "execution context fenced by current distributed authority epoch")
+
+        # HARDEN-006 recovery authority is a separate prerequisite from the
+        # HARDEN-009 distributed lease/epoch state. A locally healthy or
+        # distributed-active execution path cannot compensate for failed,
+        # missing or indeterminate recovery authority.
+        if context.recovery_authority_status is None:
+            return self._blocked("RECOVERY_AUTHORITY", "recovery authority result absent", indeterminate=True)
+        if context.recovery_authority_status == "INDETERMINATE":
+            return self._blocked("RECOVERY_AUTHORITY", "recovery authority indeterminate", indeterminate=True)
+        if context.recovery_authority_status != "ACTIVE":
+            return self._blocked("RECOVERY_AUTHORITY", f"recovery authority not active: {context.recovery_authority_status}")
+
+        # HARDEN-004 contracted evidence remains decisive at the final
+        # composition boundary. ESCALATE is not silently converted to ALLOW.
+        if context.evidence_contract_status is None:
+            return self._blocked("EVIDENCE_CONTRACT", "contracted evidence result absent", indeterminate=True)
+        if context.evidence_contract_status == "INDETERMINATE":
+            return self._blocked("EVIDENCE_CONTRACT", "contracted evidence indeterminate", indeterminate=True)
+        if context.evidence_contract_status == "ESCALATE":
+            return self._blocked("EVIDENCE_CONTRACT", "contracted evidence requires escalation")
+        if context.evidence_contract_status != "ALLOW":
+            return self._blocked("EVIDENCE_CONTRACT", f"contracted evidence not admissible: {context.evidence_contract_status}")
 
         if context.policy_status is None:
             return self._blocked("POLICY_TRANSITION", "policy-transition result absent", indeterminate=True)
