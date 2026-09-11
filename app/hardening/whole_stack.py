@@ -201,13 +201,19 @@ class WholeStackExecutionCoordinator:
             "encounter_ref": commit.encounter_ref,
             "consultation_ref": commit.consultation_ref,
             "clinician_ref": commit.clinician_ref,
+            "document_type": commit.document_type,
+            "execution_type": commit.execution_type,
             "target_system": commit.target_system,
             "target_instance": commit.target_instance,
             "target_record_ref": commit.target_record_ref,
             "product_identifier": commit.product_identifier,
             "product_version": commit.product_version,
+            "workflow_context": commit.workflow_context,
+            "intended_use": commit.intended_use,
             "runtime_policy_version": commit.runtime_policy_version,
             "rule_catalogue_version": commit.rule_catalogue_version,
+            "materiality_profile": commit.materiality_profile,
+            "canonicalisation_profile": commit.canonicalisation_profile,
         }
         invalid_commit_identity = [name for name, value in critical_commit_identity.items() if not _nonblank(value)]
         if invalid_commit_identity:
