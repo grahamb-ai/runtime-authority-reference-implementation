@@ -196,12 +196,14 @@ class WholeStackExecutionCoordinator:
         effective_now = now.astimezone(timezone.utc)
 
         critical_commit_identity = {
+            "schema_version": commit.schema_version,
             "commit_id": commit.commit_id,
             "patient_ref": commit.patient_ref,
             "encounter_ref": commit.encounter_ref,
             "consultation_ref": commit.consultation_ref,
             "clinician_ref": commit.clinician_ref,
             "document_type": commit.document_type,
+            "document_content": commit.document_content,
             "execution_type": commit.execution_type,
             "target_system": commit.target_system,
             "target_instance": commit.target_instance,
