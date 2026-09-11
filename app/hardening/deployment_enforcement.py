@@ -38,6 +38,7 @@ class BreakGlassAuthority:
     expires_at: str
     policy_version: str
     single_use: bool = True
+    integrity_reference: str = ""
 
 
 @dataclass(frozen=True)
@@ -100,12 +101,8 @@ class DeploymentEnforcer:
             return evidence("PREVENTED", "deployment enforcement unavailable; fail closed")
         if not self.active_profile.integrity_valid or not supplied_profile.integrity_valid:
             return evidence("PREVENTED", "deployment profile integrity invalid")
-
-        # Exact active-profile binding prevents same-version substitution of
-        # route sets, profile identity, contract version or break-glass policy.
         if supplied_profile != self.active_profile:
             return evidence("PREVENTED", "supplied deployment profile is not the active authoritative profile")
-
         if control_contract_version != self.active_profile.active_control_contract_version:
             return evidence("PREVENTED", "control contract version not authorised by active profile")
 
