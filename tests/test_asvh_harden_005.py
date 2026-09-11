@@ -6,6 +6,7 @@ from app.hardening.deployment_enforcement import (
     DeploymentBoundaryProfile,
     DeploymentEnforcer,
     RouteBinding,
+    sign_break_glass_authority,
 )
 from app.hardening.models import ExactClinicalCommit, ProtectedClinicalBind
 
@@ -56,7 +57,7 @@ def bg(c, **changes):
         deployment_id="ASVH-TEST-01", issued_at=NOW.isoformat(),
         expires_at=(NOW + timedelta(minutes=2)).isoformat(), policy_version="BG-1.0", single_use=True,
     )
-    return replace(b, **changes)
+    return sign_break_glass_authority(replace(b, **changes))
 
 
 def run(c=None, b=None, p=None, **kwargs):
