@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  conformance:
+  frozen-conformance:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,4 +17,69 @@ jobs:
       - name: Install test dependencies
         run: pip install pytest
       - name: Run frozen HARDEN-001 CTS
-        run: pytest -q tests/test_asvh_harden_001.py
+        run: |
+          mkdir -p evidence/baseline-current
+          pytest -q tests/test_asvh_harden_001.py --junitxml=evidence/baseline-current/frozen-cts.xml
+      - name: Write frozen CTS manifest
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os, platform
+          from datetime import datetime, timezone
+          data = {
+              "suite": "ASVH-HARDEN-001-CTS",
+              "suite_version": "1.0",
+              "run_type": "frozen-conformance",
+              "git_sha": os.environ.get("GITHUB_SHA"),
+              "git_ref": os.environ.get("GITHUB_REF_NAME"),
+              "python_version": platform.python_version(),
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "claim_boundary": "reference-harness only"
+          }
+          with open("evidence/baseline-current/MANIFEST.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2, sort_keys=True)
+          PY
+      - name: Upload frozen CTS evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asvh-harden-001-frozen-cts
+          path: evidence/baseline-current/
+
+  hostile-review:
+    runs-on: ubuntu-latest
+    needs: frozen-conformance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: pip install pytest
+      - name: Run hostile review
+        run: |
+          mkdir -p evidence/hostile-current
+          pytest -q tests/test_asvh_harden_001_hostile.py --junitxml=evidence/hostile-current/hostile-review.xml
+      - name: Write hostile review manifest
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os, platform
+          from datetime import datetime, timezone
+          data = {
+              "suite": "ASVH-HARDEN-001-HOSTILE-REVIEW",
+              "git_sha": os.environ.get("GITHUB_SHA"),
+              "git_ref": os.environ.get("GITHUB_REF_NAME"),
+              "python_version": platform.python_version(),
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "evidence_rule": "failures are preserved and are not reclassified as success"
+          }
+          with open("evidence/hostile-current/MANIFEST.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2, sort_keys=True)
+          PY
+      - name: Upload hostile review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asvh-harden-001-hostile-review
+          path: evidence/hostile-current/
