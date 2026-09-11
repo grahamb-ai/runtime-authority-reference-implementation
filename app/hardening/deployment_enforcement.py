@@ -29,6 +29,7 @@ class DeploymentBoundaryProfile:
     active_control_contract_version: str
     protected_routes: tuple[RouteBinding, ...]
     break_glass_policy_version: str
+    break_glass_max_validity_seconds: int = 900
     integrity_valid: bool = True
 
     def binding_for(self, route_id: str) -> RouteBinding | None:
@@ -117,10 +118,11 @@ class DeploymentEnforcer:
     exactly the active immutable profile; matching only version/deployment is
     insufficient because it would permit same-version route or contract
     substitution. Break-glass authority must be integrity-bound, carry a
-    non-blank authority identity and override identifier, and carry explicit
-    SINGLE_USE semantics. Consumption is enforced atomically inside this
-    enforcer by default and can be extended across enforcer instances and
-    restart by supplying a shared BreakGlassUseStore.
+    non-blank authority identity and override identifier, remain inside the
+    profile-bound maximum validity interval, and carry explicit SINGLE_USE
+    semantics. Consumption is enforced atomically inside this enforcer by
+    default and can be extended across enforcer instances and restart by
+    supplying a shared BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
     external monotonic storage or distributed consensus.
@@ -217,6 +219,15 @@ class DeploymentEnforcer:
             return evidence("PREVENTED", "break-glass expired")
         if expires_at < issued_at:
             return evidence("PREVENTED", "break-glass temporal interval invalid")
+        max_validity = self.active_profile.break_glass_max_validity_seconds
+        if type(max_validity) is not int or max_validity <= 0:
+            return evidence("PREVENTED", "break-glass maximum validity policy invalid", break_glass.override_id)
+        if (expires_at - issued_at).total_seconds() > max_validity:
+            return evidence(
+                "PREVENTED",
+                "break-glass validity interval exceeds active profile maximum",
+                break_glass.override_id,
+            )
 
         if self.break_glass_store is not None:
             try:
