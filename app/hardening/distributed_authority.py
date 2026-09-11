@@ -146,6 +146,8 @@ class DistributedAuthorityGate:
             return DistributedDecision("INDETERMINATE", "authority service unavailable; local promotion prohibited", node_id)
         if grant is None or observation is None:
             return DistributedDecision("INDETERMINATE", "grant or distributed observation unavailable", node_id)
+        if type(observation.replica_age_seconds) is int and observation.replica_age_seconds < 0:
+            return DistributedDecision("PREVENTED", "replica age cannot be negative", node_id)
         try:
             ae = _strict_int(grant.authority_epoch)
             se = _strict_int(grant.state_epoch)
@@ -193,6 +195,8 @@ class DistributedAuthorityGate:
         current = self.store.read(self.cluster_id, self.deployment_profile_id)
         if current is None:
             return DistributedDecision("INDETERMINATE", "distributed high-watermark unavailable", node_id)
+        if type(observation.replica_age_seconds) is int and observation.replica_age_seconds < 0:
+            return DistributedDecision("PREVENTED", "replica age cannot be negative", node_id, grant.authority_epoch, grant.lease_id)
         try:
             _strict_int(grant.authority_epoch)
             _strict_int(observation.authority_epoch)
