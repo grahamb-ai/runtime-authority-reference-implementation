@@ -126,9 +126,10 @@ class DeploymentEnforcer:
     authority must be integrity-bound, carry an authority identity explicitly
     admitted by the active profile and a non-blank override identifier, use
     timezone-aware temporal evidence, remain inside the profile-bound maximum
-    validity interval, and carry explicit SINGLE_USE semantics. Consumption is
-    enforced atomically inside this enforcer by default and can be extended
-    across enforcer instances and restart by supplying a shared
+    validity interval, and carry explicit SINGLE_USE semantics. The validity
+    interval is half-open: issued_at is inclusive and expires_at is exclusive.
+    Consumption is enforced atomically inside this enforcer by default and can
+    be extended across enforcer instances and restart by supplying a shared
     BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
@@ -240,7 +241,7 @@ class DeploymentEnforcer:
             return evidence("PREVENTED", "break-glass expires_at must be timezone-aware", break_glass.override_id)
         if now < issued_at:
             return evidence("PREVENTED", "break-glass not yet valid")
-        if now > expires_at:
+        if now >= expires_at:
             return evidence("PREVENTED", "break-glass expired")
         if expires_at < issued_at:
             return evidence("PREVENTED", "break-glass temporal interval invalid")
