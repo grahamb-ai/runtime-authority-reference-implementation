@@ -27,6 +27,18 @@ def _signed(layer, producer, status, *, epoch=2, lease="LEASE-01", policy="HC-PO
     )
 
 
+def _legacy_signed(layer, producer, status):
+    c, _ = valid_bind()
+    return make_layer_authority_evidence(
+        layer=layer,
+        producer_id=producer,
+        deployment_id="DEP-01",
+        commit_binding_hash=c.commit_binding_hash,
+        status=status,
+        observed_at=NOW.isoformat(),
+    )
+
+
 def fully_bound_context():
     ctx = context()
     evidence = (
@@ -76,9 +88,15 @@ def test_ws5_006_signed_wrong_deployment_profile_version_cannot_form():
 
 
 def test_ws5_007_missing_fencing_version_bindings_cannot_form():
-    # Legacy pass-4 evidence is integrity-valid but carries none of the new
-    # fencing/version dimensions. It must not silently remain execution-usable.
-    assert run(context()).status != "FORMED"
+    ctx = context()
+    legacy = (
+        _legacy_signed("DISTRIBUTED_AUTHORITY", "RA-DISTRIBUTED-01", "ACTIVE"),
+        _legacy_signed("RECOVERY_AUTHORITY", "RA-RECOVERY-01", "ACTIVE"),
+        _legacy_signed("EVIDENCE_CONTRACT", "RA-EVIDENCE-01", "ALLOW"),
+        _legacy_signed("POLICY_TRANSITION", "RA-POLICY-01", "ALLOW"),
+        _legacy_signed("PRESENT_STANDING", "RA-STANDING-01", "ALLOW"),
+    )
+    assert run(replace(ctx, layer_evidence=legacy)).status != "FORMED"
 
 
 def test_ws5_008_break_glass_cannot_bypass_wrong_signed_lease():
