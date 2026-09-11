@@ -28,6 +28,12 @@ class LayerAuthorityEvidence:
     commit_binding_hash: str
     status: str
     observed_at: str
+    authority_epoch: int | None = None
+    authority_lease_id: str | None = None
+    runtime_policy_version: str | None = None
+    rule_catalogue_version: str | None = None
+    control_contract_version: str | None = None
+    deployment_profile_version: int | None = None
     integrity_reference: str = ""
 
     def payload(self) -> str:
@@ -38,27 +44,63 @@ class LayerAuthorityEvidence:
             "commit_binding_hash": self.commit_binding_hash,
             "status": self.status,
             "observed_at": self.observed_at,
+            "authority_epoch": self.authority_epoch,
+            "authority_lease_id": self.authority_lease_id,
+            "runtime_policy_version": self.runtime_policy_version,
+            "rule_catalogue_version": self.rule_catalogue_version,
+            "control_contract_version": self.control_contract_version,
+            "deployment_profile_version": self.deployment_profile_version,
         }, sort_keys=True, separators=(",", ":"))
 
 
-def make_layer_authority_evidence(*, layer: str, producer_id: str, deployment_id: str, commit_binding_hash: str, status: str, observed_at: str) -> LayerAuthorityEvidence:
-    unsigned = LayerAuthorityEvidence(layer, producer_id, deployment_id, commit_binding_hash, status, observed_at)
+def make_layer_authority_evidence(
+    *,
+    layer: str,
+    producer_id: str,
+    deployment_id: str,
+    commit_binding_hash: str,
+    status: str,
+    observed_at: str,
+    authority_epoch: int | None = None,
+    authority_lease_id: str | None = None,
+    runtime_policy_version: str | None = None,
+    rule_catalogue_version: str | None = None,
+    control_contract_version: str | None = None,
+    deployment_profile_version: int | None = None,
+) -> LayerAuthorityEvidence:
+    unsigned = LayerAuthorityEvidence(
+        layer, producer_id, deployment_id, commit_binding_hash, status, observed_at,
+        authority_epoch, authority_lease_id, runtime_policy_version,
+        rule_catalogue_version, control_contract_version, deployment_profile_version,
+    )
     digest = hmac.new(REFERENCE_COMPOSITION_KEY, unsigned.payload().encode("utf-8"), hashlib.sha256).hexdigest()
-    return LayerAuthorityEvidence(layer, producer_id, deployment_id, commit_binding_hash, status, observed_at, f"WS-HMAC-SHA256-1:{digest}")
+    return LayerAuthorityEvidence(
+        layer, producer_id, deployment_id, commit_binding_hash, status, observed_at,
+        authority_epoch, authority_lease_id, runtime_policy_version,
+        rule_catalogue_version, control_contract_version, deployment_profile_version,
+        f"WS-HMAC-SHA256-1:{digest}",
+    )
 
 
 def verify_layer_authority_evidence(evidence: LayerAuthorityEvidence) -> bool:
     if not evidence.integrity_reference.startswith("WS-HMAC-SHA256-1:"):
         return False
     supplied = evidence.integrity_reference.split(":", 1)[1]
-    expected = hmac.new(REFERENCE_COMPOSITION_KEY, LayerAuthorityEvidence(
+    unsigned = LayerAuthorityEvidence(
         evidence.layer,
         evidence.producer_id,
         evidence.deployment_id,
         evidence.commit_binding_hash,
         evidence.status,
         evidence.observed_at,
-    ).payload().encode("utf-8"), hashlib.sha256).hexdigest()
+        evidence.authority_epoch,
+        evidence.authority_lease_id,
+        evidence.runtime_policy_version,
+        evidence.rule_catalogue_version,
+        evidence.control_contract_version,
+        evidence.deployment_profile_version,
+    )
+    expected = hmac.new(REFERENCE_COMPOSITION_KEY, unsigned.payload().encode("utf-8"), hashlib.sha256).hexdigest()
     return hmac.compare_digest(supplied, expected)
 
 
@@ -71,6 +113,7 @@ class WholeStackAuthorityContext:
     authority_rule_catalogue_version: str
     distributed_authority_epoch: int | None = None
     current_distributed_epoch: int | None = None
+    distributed_lease_id: str | None = "LEASE-01"
     recovery_authority_status: str | None = None
     evidence_contract_status: str | None = None
     distributed_deployment_id: str | None = None
@@ -163,9 +206,6 @@ class WholeStackExecutionCoordinator:
         if context.authority_commit_binding_hash != commit.commit_binding_hash:
             return self._blocked("IDENTITY_COHERENCE", "authority consequence binding differs from exact consequence")
 
-        # Composition evidence must be complete, unique, integrity-valid,
-        # producer-bound, consequence-bound and fresh. This prevents caller-
-        # supplied naked status strings from silently becoming execution truth.
         required_layers = set(EXPECTED_LAYER_PRODUCERS)
         if not context.layer_evidence:
             return self._blocked("COMPOSITION_EVIDENCE", "layer authority evidence absent", indeterminate=True)
@@ -204,6 +244,10 @@ class WholeStackExecutionCoordinator:
                 return self._blocked("COMPOSITION_EVIDENCE", f"future observation for {evidence.layer}")
             if age > COMPOSITION_EVIDENCE_MAX_AGE_SECONDS:
                 return self._blocked("COMPOSITION_EVIDENCE", f"stale observation for {evidence.layer}")
+
+        # Baseline for hostile pass 5: the signed evidence schema carries
+        # fencing/version dimensions, but final-boundary enforcement is not yet
+        # added here. Pass-5 tests determine whether that omission is material.
 
         if context.distributed_status is None:
             return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority result absent", indeterminate=True)
