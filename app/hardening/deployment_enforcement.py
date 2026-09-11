@@ -12,6 +12,7 @@ from .store import BreakGlassUseStore
 
 REFERENCE_BREAK_GLASS_KEY = b"asvh-reference-break-glass-only"
 BREAK_GLASS_INTEGRITY_PROFILE = "BG-HMAC-SHA256-1"
+VALID_RUNTIME_DECISIONS = ("ALLOW", "ESCALATE", "REFUSE")
 
 
 @dataclass(frozen=True)
@@ -121,13 +122,14 @@ class DeploymentEnforcer:
     The active profile is constructor-bound. A caller-supplied profile must be
     exactly the active immutable profile; matching only version/deployment is
     insufficient because it would permit same-version route or contract
-    substitution. Break-glass authority must be integrity-bound, carry an
-    authority identity explicitly admitted by the active profile and a
-    non-blank override identifier, use timezone-aware temporal evidence,
-    remain inside the profile-bound maximum validity interval, and carry
-    explicit SINGLE_USE semantics. Consumption is enforced atomically inside
-    this enforcer by default and can be extended across enforcer instances and
-    restart by supplying a shared BreakGlassUseStore.
+    substitution. Runtime decision vocabulary is closed and exact. Break-glass
+    authority must be integrity-bound, carry an authority identity explicitly
+    admitted by the active profile and a non-blank override identifier, use
+    timezone-aware temporal evidence, remain inside the profile-bound maximum
+    validity interval, and carry explicit SINGLE_USE semantics. Consumption is
+    enforced atomically inside this enforcer by default and can be extended
+    across enforcer instances and restart by supplying a shared
+    BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
     external monotonic storage or distributed consensus.
@@ -184,6 +186,8 @@ class DeploymentEnforcer:
             return evidence("PREVENTED", "route not declared in deployment boundary")
         if route.target_capability != target_capability:
             return evidence("PREVENTED", "route target capability mismatch")
+        if original_decision not in VALID_RUNTIME_DECISIONS:
+            return evidence("PREVENTED", "runtime decision outside closed decision vocabulary")
 
         if original_decision == "ALLOW":
             if bind is None:
