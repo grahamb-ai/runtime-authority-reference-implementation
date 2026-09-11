@@ -187,6 +187,10 @@ class WholeStackExecutionCoordinator:
                 bind: ProtectedClinicalBind | None, original_decision: str,
                 control_contract_version: str, now: datetime,
                 break_glass: BreakGlassAuthority | None = None) -> WholeStackEvidence:
+        if now.tzinfo is None or now.utcoffset() is None:
+            return self._blocked("TRUSTED_TIME", "execution time must be timezone-aware", indeterminate=True)
+        effective_now = now.astimezone(timezone.utc)
+
         identity_values = (
             context.distributed_deployment_id, context.recovery_deployment_id,
             context.evidence_deployment_id, context.policy_deployment_id,
@@ -233,8 +237,6 @@ class WholeStackExecutionCoordinator:
             "POLICY_TRANSITION": context.policy_status or "ABSENT",
             "PRESENT_STANDING": context.present_standing_status or "ABSENT",
         }
-        effective_now = now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
-        effective_now = effective_now.astimezone(timezone.utc)
         if context.distributed_lease_id is None:
             return self._blocked("COMPOSITION_EVIDENCE", "current distributed lease unavailable", indeterminate=True)
 
@@ -359,7 +361,7 @@ class WholeStackExecutionCoordinator:
             supplied_profile=supplied_profile, route_id=route_id,
             target_capability=target_capability, commit=commit, bind=bind,
             original_decision=original_decision,
-            control_contract_version=control_contract_version, now=now,
+            control_contract_version=control_contract_version, now=effective_now,
             break_glass=break_glass,
         )
         return WholeStackEvidence(deployment.status, "DEPLOYMENT", deployment.detail, deployment)
