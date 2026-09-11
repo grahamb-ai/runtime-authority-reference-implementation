@@ -1,7 +1,13 @@
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
-from app.hardening.deployment_enforcement import BreakGlassAuthority, DeploymentBoundaryProfile, DeploymentEnforcer, RouteBinding
+from app.hardening.deployment_enforcement import (
+    BreakGlassAuthority,
+    DeploymentBoundaryProfile,
+    DeploymentEnforcer,
+    RouteBinding,
+    sign_break_glass_authority,
+)
 from app.hardening.models import ExactClinicalCommit, ProtectedClinicalBind
 
 NOW = datetime(2026, 9, 11, 14, 0, tzinfo=timezone.utc)
@@ -69,11 +75,11 @@ def test_hostile_same_version_profile_cannot_expand_contract_authority():
 
 def test_hostile_breakglass_single_use_is_enforced_not_declarative():
     c = commit(); active = active_profile(); enforcer = DeploymentEnforcer(active)
-    authority = BreakGlassAuthority(
+    authority = sign_break_glass_authority(BreakGlassAuthority(
         override_id="BG-REPLAY", authority_identity="DUTY-CONSULTANT", commit_binding_hash=c.commit_binding_hash,
         deployment_id=active.deployment_id, issued_at=NOW.isoformat(), expires_at=(NOW + timedelta(minutes=2)).isoformat(),
         policy_version=active.break_glass_policy_version, single_use=True,
-    )
+    ))
     kwargs = dict(
         supplied_profile=active, route_id="PRIMARY_EPR_COMMIT", target_capability="EPR:WRITE:CLINICAL_NOTE",
         commit=c, bind=None, original_decision="REFUSE", control_contract_version="CC-1.0", now=NOW,
@@ -85,12 +91,12 @@ def test_hostile_breakglass_single_use_is_enforced_not_declarative():
 
 def test_hostile_future_issued_breakglass_is_not_yet_authority():
     c = commit(); active = active_profile(); enforcer = DeploymentEnforcer(active)
-    authority = BreakGlassAuthority(
+    authority = sign_break_glass_authority(BreakGlassAuthority(
         override_id="BG-FUTURE", authority_identity="DUTY-CONSULTANT", commit_binding_hash=c.commit_binding_hash,
         deployment_id=active.deployment_id, issued_at=(NOW + timedelta(minutes=5)).isoformat(),
         expires_at=(NOW + timedelta(minutes=10)).isoformat(), policy_version=active.break_glass_policy_version,
         single_use=True,
-    )
+    ))
     result = enforcer.enforce(
         supplied_profile=active, route_id="PRIMARY_EPR_COMMIT", target_capability="EPR:WRITE:CLINICAL_NOTE",
         commit=c, bind=None, original_decision="REFUSE", control_contract_version="CC-1.0", now=NOW,
