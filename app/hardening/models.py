@@ -100,3 +100,4 @@ class ProtectedClinicalBind:
     issued_at: str
     expires_at: str
     use_semantics: str = "SINGLE_USE"
+    integrity_reference: str = ""
