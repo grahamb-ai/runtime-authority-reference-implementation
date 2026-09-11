@@ -20,3 +20,16 @@ jobs:
         run: pytest -q tests/test_asvh_harden_001.py tests/test_asvh_harden_001_hostile.py
       - name: Run frozen HARDEN-002 CTS
         run: pytest -q tests/test_asvh_harden_002.py
+
+  hostile-review:
+    runs-on: ubuntu-latest
+    needs: continuity-conformance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: pip install pytest
+      - name: Run HARDEN-002 hostile review
+        run: pytest -q tests/test_asvh_harden_002_hostile.py
