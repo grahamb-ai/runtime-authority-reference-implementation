@@ -30,6 +30,7 @@ class DeploymentBoundaryProfile:
     protected_routes: tuple[RouteBinding, ...]
     break_glass_policy_version: str
     break_glass_max_validity_seconds: int = 900
+    break_glass_authority_identities: tuple[str, ...] = ("CLINICAL-DUTY-MANAGER",)
     integrity_valid: bool = True
 
     def binding_for(self, route_id: str) -> RouteBinding | None:
@@ -117,12 +118,13 @@ class DeploymentEnforcer:
     The active profile is constructor-bound. A caller-supplied profile must be
     exactly the active immutable profile; matching only version/deployment is
     insufficient because it would permit same-version route or contract
-    substitution. Break-glass authority must be integrity-bound, carry a
-    non-blank authority identity and override identifier, use timezone-aware
-    temporal evidence, remain inside the profile-bound maximum validity
-    interval, and carry explicit SINGLE_USE semantics. Consumption is enforced
-    atomically inside this enforcer by default and can be extended across
-    enforcer instances and restart by supplying a shared BreakGlassUseStore.
+    substitution. Break-glass authority must be integrity-bound, carry an
+    authority identity explicitly admitted by the active profile and a
+    non-blank override identifier, use timezone-aware temporal evidence,
+    remain inside the profile-bound maximum validity interval, and carry
+    explicit SINGLE_USE semantics. Consumption is enforced atomically inside
+    this enforcer by default and can be extended across enforcer instances and
+    restart by supplying a shared BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
     external monotonic storage or distributed consensus.
@@ -195,6 +197,16 @@ class DeploymentEnforcer:
             return evidence("PREVENTED", "break-glass override identifier missing", break_glass.override_id)
         if not isinstance(break_glass.authority_identity, str) or not break_glass.authority_identity.strip():
             return evidence("PREVENTED", "break-glass authority identity missing", break_glass.override_id)
+        admitted_identities = self.active_profile.break_glass_authority_identities
+        if (
+            not isinstance(admitted_identities, tuple)
+            or not admitted_identities
+            or any(not isinstance(identity, str) or not identity.strip() for identity in admitted_identities)
+            or len(set(admitted_identities)) != len(admitted_identities)
+        ):
+            return evidence("PREVENTED", "break-glass authority identity policy invalid", break_glass.override_id)
+        if break_glass.authority_identity not in admitted_identities:
+            return evidence("PREVENTED", "break-glass authority identity not admitted by active profile", break_glass.override_id)
         if break_glass.deployment_id != self.active_profile.deployment_id:
             return evidence("PREVENTED", "break-glass deployment mismatch")
         if break_glass.policy_version != self.active_profile.break_glass_policy_version:
