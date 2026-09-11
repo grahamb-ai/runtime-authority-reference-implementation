@@ -5,7 +5,11 @@ from app.hardening.deployment_enforcement import (
     BreakGlassAuthority, DeploymentBoundaryProfile, DeploymentEnforcer, RouteBinding,
 )
 from app.hardening.runtime import HarnessClock, make_authority_receipt, make_protected_bind
-from app.hardening.whole_stack import WholeStackAuthorityContext, WholeStackExecutionCoordinator
+from app.hardening.whole_stack import (
+    WholeStackAuthorityContext,
+    WholeStackExecutionCoordinator,
+    make_layer_authority_evidence,
+)
 from tests.test_asvh_harden_001 import baseline_commit
 
 NOW = datetime(2026, 9, 11, 12, 0, tzinfo=timezone.utc)
@@ -32,6 +36,17 @@ def valid_bind(commit=None):
     return commit, bind
 
 
+def _layer_evidence(c, distributed, recovery, evidence, policy, standing):
+    observed_at = NOW.isoformat()
+    return (
+        make_layer_authority_evidence(layer="DISTRIBUTED_AUTHORITY", producer_id="RA-DISTRIBUTED-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=distributed or "ABSENT", observed_at=observed_at),
+        make_layer_authority_evidence(layer="RECOVERY_AUTHORITY", producer_id="RA-RECOVERY-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=recovery or "ABSENT", observed_at=observed_at),
+        make_layer_authority_evidence(layer="EVIDENCE_CONTRACT", producer_id="RA-EVIDENCE-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=evidence or "ABSENT", observed_at=observed_at),
+        make_layer_authority_evidence(layer="POLICY_TRANSITION", producer_id="RA-POLICY-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=policy or "ABSENT", observed_at=observed_at),
+        make_layer_authority_evidence(layer="PRESENT_STANDING", producer_id="RA-STANDING-01", deployment_id="DEP-01", commit_binding_hash=c.commit_binding_hash, status=standing or "ABSENT", observed_at=observed_at),
+    )
+
+
 def context(distributed="ACTIVE", policy="ALLOW", standing="ALLOW", *, authority_policy="HC-POL-1.0", rules="ASVH-RC-1.0", epoch=2, current_epoch=2, recovery="ACTIVE", evidence="ALLOW"):
     c = baseline_commit()
     return WholeStackAuthorityContext(
@@ -52,6 +67,7 @@ def context(distributed="ACTIVE", policy="ALLOW", standing="ALLOW", *, authority
         evidence_product_identifier=c.product_identifier,
         evidence_product_version=c.product_version,
         authority_commit_binding_hash=c.commit_binding_hash,
+        layer_evidence=_layer_evidence(c, distributed, recovery, evidence, policy, standing),
     )
 
 
