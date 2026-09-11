@@ -103,6 +103,38 @@ def verify_break_glass_integrity(
     return hmac.compare_digest(supplied, expected)
 
 
+def _nonblank(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _valid_profile_structure(profile: DeploymentBoundaryProfile) -> bool:
+    if not all(
+        _nonblank(value)
+        for value in (
+            profile.profile_id,
+            profile.deployment_id,
+            profile.governed_consequence_type,
+            profile.active_control_contract_version,
+            profile.break_glass_policy_version,
+        )
+    ):
+        return False
+    if type(profile.profile_version) is not int or profile.profile_version <= 0:
+        return False
+    if not isinstance(profile.protected_routes, tuple) or not profile.protected_routes:
+        return False
+    route_ids: list[str] = []
+    for route in profile.protected_routes:
+        if not isinstance(route, RouteBinding):
+            return False
+        if not _nonblank(route.route_id) or not _nonblank(route.target_capability):
+            return False
+        route_ids.append(route.route_id)
+    if len(set(route_ids)) != len(route_ids):
+        return False
+    return True
+
+
 @dataclass(frozen=True)
 class EnforcementEvidence:
     status: str  # FORMED | PREVENTED | INDETERMINATE
@@ -122,14 +154,18 @@ class DeploymentEnforcer:
     The active profile is constructor-bound. A caller-supplied profile must be
     exactly the active immutable profile; matching only version/deployment is
     insufficient because it would permit same-version route or contract
-    substitution. Runtime decision vocabulary is closed and exact. Break-glass
-    authority must be integrity-bound, carry an authority identity explicitly
-    admitted by the active profile and a non-blank override identifier, use
-    timezone-aware temporal evidence, remain inside the profile-bound maximum
-    validity interval, and carry explicit SINGLE_USE semantics. The validity
-    interval is half-open: issued_at is inclusive and expires_at is exclusive.
-    Consumption is enforced atomically inside this enforcer by default and can
-    be extended across enforcer instances and restart by supplying a shared
+    substitution. The authoritative profile must also be structurally
+    meaningful: identifiers and governed consequence metadata are non-blank,
+    profile version is a positive integer, and protected routes are non-empty,
+    uniquely identified and bound to non-blank target capabilities. Runtime
+    decision vocabulary is closed and exact. Break-glass authority must be
+    integrity-bound, carry an authority identity explicitly admitted by the
+    active profile and a non-blank override identifier, use timezone-aware
+    temporal evidence, remain inside the profile-bound maximum validity
+    interval, and carry explicit SINGLE_USE semantics. The validity interval is
+    half-open: issued_at is inclusive and expires_at is exclusive. Consumption
+    is enforced atomically inside this enforcer by default and can be extended
+    across enforcer instances and restart by supplying a shared
     BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
@@ -175,6 +211,8 @@ class DeploymentEnforcer:
 
         if not enforcement_available:
             return evidence("PREVENTED", "deployment enforcement unavailable; fail closed")
+        if not _valid_profile_structure(self.active_profile) or not _valid_profile_structure(supplied_profile):
+            return evidence("PREVENTED", "deployment profile structure invalid")
         if not self.active_profile.integrity_valid or not supplied_profile.integrity_valid:
             return evidence("PREVENTED", "deployment profile integrity invalid")
         if supplied_profile != self.active_profile:
