@@ -140,6 +140,31 @@ def _valid_profile_structure(profile: DeploymentBoundaryProfile) -> bool:
     return True
 
 
+def _valid_bind_semantics(bind: ProtectedClinicalBind, commit: ExactClinicalCommit) -> bool:
+    required = (
+        bind.schema_version,
+        bind.bind_id,
+        bind.authority_receipt_id,
+        bind.commit_id,
+        bind.commit_binding_hash,
+        bind.runtime_authority_version,
+        bind.runtime_policy_version,
+        bind.rule_catalogue_version,
+        bind.materiality_profile,
+        bind.canonicalisation_profile,
+        bind.issued_at,
+        bind.expires_at,
+        bind.use_semantics,
+    )
+    if not all(_nonblank(value) for value in required):
+        return False
+    if bind.materiality_profile != commit.materiality_profile:
+        return False
+    if bind.canonicalisation_profile != commit.canonicalisation_profile:
+        return False
+    return True
+
+
 @dataclass(frozen=True)
 class EnforcementEvidence:
     status: str  # FORMED | PREVENTED | INDETERMINATE
@@ -164,14 +189,16 @@ class DeploymentEnforcer:
     profile version is a positive integer, profile integrity must be exact
     boolean True, and protected routes are non-empty, uniquely identified and
     bound to non-blank target capabilities. Runtime decision vocabulary is
-    closed and exact. Break-glass authority must be integrity-bound, carry an
-    authority identity explicitly admitted by the active profile and a
-    non-blank override identifier, use timezone-aware temporal evidence, remain
-    inside the profile-bound maximum validity interval, and carry explicit
-    SINGLE_USE semantics. The validity interval is half-open: issued_at is
-    inclusive and expires_at is exclusive. Consumption is enforced atomically
-    inside this enforcer by default and can be extended across enforcer
-    instances and restart by supplying a shared BreakGlassUseStore.
+    closed and exact. Protected binds must carry non-blank semantic identity and
+    retain the exact commit materiality/canonicalisation basis. Break-glass
+    authority must be integrity-bound, carry an authority identity explicitly
+    admitted by the active profile and a non-blank override identifier, use
+    timezone-aware temporal evidence, remain inside the profile-bound maximum
+    validity interval, and carry explicit SINGLE_USE semantics. The validity
+    interval is half-open: issued_at is inclusive and expires_at is exclusive.
+    Consumption is enforced atomically inside this enforcer by default and can
+    be extended across enforcer instances and restart by supplying a shared
+    BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
     external monotonic storage or distributed consensus.
@@ -236,6 +263,8 @@ class DeploymentEnforcer:
         if original_decision == "ALLOW":
             if bind is None:
                 return evidence("PREVENTED", "ALLOW without protected bind")
+            if not _valid_bind_semantics(bind, commit):
+                return evidence("PREVENTED", "protected bind semantic identity invalid")
             if bind.commit_binding_hash != commit.commit_binding_hash:
                 return evidence("PREVENTED", "protected bind does not match exact commit")
             return evidence("FORMED", "protected route authorised exact consequence")
