@@ -7,12 +7,19 @@ import threading
 from dataclasses import dataclass, replace
 from datetime import datetime
 
-from .models import ExactClinicalCommit, ProtectedClinicalBind
+from .models import (
+    CANONICALISATION_PROFILE,
+    MATERIALITY_PROFILE,
+    ExactClinicalCommit,
+    ProtectedClinicalBind,
+)
 from .store import BreakGlassUseStore
 
 REFERENCE_BREAK_GLASS_KEY = b"asvh-reference-break-glass-only"
 BREAK_GLASS_INTEGRITY_PROFILE = "BG-HMAC-SHA256-1"
 VALID_RUNTIME_DECISIONS = ("ALLOW", "ESCALATE", "REFUSE")
+SUPPORTED_EXACT_COMMIT_SCHEMA = "ECC-1.0"
+SUPPORTED_PROTECTED_BIND_SCHEMA = "PCB-1.0"
 
 
 @dataclass(frozen=True)
@@ -140,6 +147,14 @@ def _valid_profile_structure(profile: DeploymentBoundaryProfile) -> bool:
     return True
 
 
+def _valid_commit_semantics(commit: ExactClinicalCommit) -> bool:
+    return (
+        commit.schema_version == SUPPORTED_EXACT_COMMIT_SCHEMA
+        and commit.materiality_profile == MATERIALITY_PROFILE
+        and commit.canonicalisation_profile == CANONICALISATION_PROFILE
+    )
+
+
 def _valid_bind_semantics(bind: ProtectedClinicalBind, commit: ExactClinicalCommit) -> bool:
     required = (
         bind.schema_version,
@@ -157,6 +172,8 @@ def _valid_bind_semantics(bind: ProtectedClinicalBind, commit: ExactClinicalComm
         bind.use_semantics,
     )
     if not all(_nonblank(value) for value in required):
+        return False
+    if bind.schema_version != SUPPORTED_PROTECTED_BIND_SCHEMA:
         return False
     if bind.materiality_profile != commit.materiality_profile:
         return False
@@ -188,17 +205,19 @@ class DeploymentEnforcer:
     meaningful: identifiers and governed consequence metadata are non-blank,
     profile version is a positive integer, profile integrity must be exact
     boolean True, and protected routes are non-empty, uniquely identified and
-    bound to non-blank target capabilities. Runtime decision vocabulary is
-    closed and exact. Protected binds must carry non-blank semantic identity and
-    retain the exact commit materiality/canonicalisation basis. Break-glass
-    authority must be integrity-bound, carry an authority identity explicitly
-    admitted by the active profile and a non-blank override identifier, use
-    timezone-aware temporal evidence, remain inside the profile-bound maximum
-    validity interval, and carry explicit SINGLE_USE semantics. The validity
-    interval is half-open: issued_at is inclusive and expires_at is exclusive.
-    Consumption is enforced atomically inside this enforcer by default and can
-    be extended across enforcer instances and restart by supplying a shared
-    BreakGlassUseStore.
+    bound to non-blank target capabilities. The reference harness accepts only
+    its declared exact-consequence schema, materiality profile and
+    canonicalisation profile. Runtime decision vocabulary is closed and exact.
+    Protected binds must carry non-blank semantic identity, use the supported
+    protected-bind schema, and retain the exact commit materiality and
+    canonicalisation basis. Break-glass authority must be integrity-bound,
+    carry an authority identity explicitly admitted by the active profile and a
+    non-blank override identifier, use timezone-aware temporal evidence, remain
+    inside the profile-bound maximum validity interval, and carry explicit
+    SINGLE_USE semantics. The validity interval is half-open: issued_at is
+    inclusive and expires_at is exclusive. Consumption is enforced atomically
+    inside this enforcer by default and can be extended across enforcer
+    instances and restart by supplying a shared BreakGlassUseStore.
 
     This is a bounded harness mechanism, not production IAM, key management,
     external monotonic storage or distributed consensus.
@@ -251,6 +270,8 @@ class DeploymentEnforcer:
             return evidence("PREVENTED", "supplied deployment profile is not the active authoritative profile")
         if control_contract_version != self.active_profile.active_control_contract_version:
             return evidence("PREVENTED", "control contract version not authorised by active profile")
+        if not _valid_commit_semantics(commit):
+            return evidence("PREVENTED", "exact consequence schema/profile unsupported by reference harness")
 
         route = self.active_profile.binding_for(route_id)
         if route is None:
