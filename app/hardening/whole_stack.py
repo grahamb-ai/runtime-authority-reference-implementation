@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .deployment_enforcement import DeploymentEnforcer, EnforcementEvidence, DeploymentBoundaryProfile, BreakGlassAuthority
 from .models import ExactClinicalCommit, ProtectedClinicalBind
@@ -26,16 +26,28 @@ class WholeStackEvidence:
     deployment_evidence: EnforcementEvidence | None = None
 
 
-class WholeStackExecutionCoordinator:
-    """Initial whole-stack composition point.
+def _parse_ts(value: str) -> datetime:
+    dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
-    Baseline intentionally contains only the existing deployment enforcement
-    delegation. Frozen hostile tests determine whether cross-layer state is
-    sufficiently bound before consequence formation.
+
+class WholeStackExecutionCoordinator:
+    """Reference composition boundary for HARDEN-001 through HARDEN-009.
+
+    This coordinator prevents a lower execution layer from converting an
+    upstream authority failure into a simulated governed consequence. It is a
+    reference-harness composition mechanism, not a production transaction or
+    distributed consensus boundary.
     """
 
     def __init__(self, enforcer: DeploymentEnforcer):
         self.enforcer = enforcer
+
+    @staticmethod
+    def _blocked(layer: str, detail: str, *, indeterminate: bool = False) -> WholeStackEvidence:
+        return WholeStackEvidence("INDETERMINATE" if indeterminate else "PREVENTED", layer, detail, None)
 
     def execute(
         self,
@@ -51,6 +63,69 @@ class WholeStackExecutionCoordinator:
         now: datetime,
         break_glass: BreakGlassAuthority | None = None,
     ) -> WholeStackEvidence:
+        # Distributed execution authority is decisive for both normal and
+        # break-glass paths. Missing or indeterminate distributed state never
+        # silently degrades to local authority.
+        if context.distributed_status is None:
+            return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority result absent", indeterminate=True)
+        if context.distributed_status == "INDETERMINATE":
+            return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority indeterminate", indeterminate=True)
+        if context.distributed_status != "ACTIVE":
+            return self._blocked("DISTRIBUTED_AUTHORITY", f"distributed authority not active: {context.distributed_status}")
+        if context.distributed_authority_epoch is None or context.current_distributed_epoch is None:
+            return self._blocked("DISTRIBUTED_AUTHORITY", "distributed authority epoch unavailable", indeterminate=True)
+        if context.distributed_authority_epoch != context.current_distributed_epoch:
+            return self._blocked("DISTRIBUTED_AUTHORITY", "execution context fenced by current distributed authority epoch")
+
+        # Policy transition semantics remain authoritative at the final
+        # composition boundary. REVALIDATE is not equivalent to ALLOW.
+        if context.policy_status is None:
+            return self._blocked("POLICY_TRANSITION", "policy-transition result absent", indeterminate=True)
+        if context.policy_status == "INDETERMINATE":
+            return self._blocked("POLICY_TRANSITION", "policy transition indeterminate", indeterminate=True)
+        if context.policy_status == "REVALIDATE":
+            return self._blocked("POLICY_TRANSITION", "fresh authority required after policy transition")
+        if context.policy_status != "ALLOW":
+            return self._blocked("POLICY_TRANSITION", f"policy transition prevents outstanding authority: {context.policy_status}")
+
+        # Present standing must still be established at the composed execution
+        # boundary.
+        if context.present_standing_status is None:
+            return self._blocked("PRESENT_STANDING", "present-standing result absent", indeterminate=True)
+        if context.present_standing_status == "INDETERMINATE":
+            return self._blocked("PRESENT_STANDING", "present standing indeterminate", indeterminate=True)
+        if context.present_standing_status != "ALLOW":
+            return self._blocked("PRESENT_STANDING", f"present standing not admissible: {context.present_standing_status}")
+
+        # For the normal ALLOW path, bind identity, policy basis and temporal
+        # validity are re-established immediately before deployment enforcement.
+        if original_decision == "ALLOW":
+            if bind is None:
+                return self._blocked("PROTECTED_BIND", "ALLOW path missing protected bind")
+            try:
+                issued_at = _parse_ts(bind.issued_at)
+                expires_at = _parse_ts(bind.expires_at)
+                effective_now = now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
+                effective_now = effective_now.astimezone(timezone.utc)
+            except Exception:
+                return self._blocked("PROTECTED_BIND", "protected bind temporal state malformed", indeterminate=True)
+            if effective_now < issued_at:
+                return self._blocked("PROTECTED_BIND", "protected bind not yet valid")
+            if effective_now >= expires_at:
+                return self._blocked("PROTECTED_BIND", "protected bind expired")
+            if expires_at <= issued_at:
+                return self._blocked("PROTECTED_BIND", "protected bind temporal interval invalid")
+            if bind.commit_id != commit.commit_id or bind.commit_binding_hash != commit.commit_binding_hash:
+                return self._blocked("PROTECTED_BIND", "protected bind does not match exact commit")
+            if bind.runtime_policy_version != context.authority_policy_version:
+                return self._blocked("POLICY_BINDING", "protected bind policy basis differs from authority context")
+            if bind.rule_catalogue_version != context.authority_rule_catalogue_version:
+                return self._blocked("POLICY_BINDING", "protected bind rule catalogue differs from authority context")
+            if commit.runtime_policy_version != context.authority_policy_version:
+                return self._blocked("POLICY_BINDING", "exact commit policy basis differs from authority context")
+            if commit.rule_catalogue_version != context.authority_rule_catalogue_version:
+                return self._blocked("POLICY_BINDING", "exact commit rule catalogue differs from authority context")
+
         deployment = self.enforcer.enforce(
             supplied_profile=supplied_profile,
             route_id=route_id,
