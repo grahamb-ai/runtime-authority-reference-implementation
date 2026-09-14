@@ -1,8 +1,9 @@
 # ASVH Consolidated Evidence & Verification Record
 
-**Status:** DRAFT FOR HOSTILE RED-TEAM REVIEW  
+**Status:** DRAFT — RED-TEAM CORRECTIONS APPLIED / NOT YET FROZEN  
 **Purpose:** consolidate the current ASVH reference-harness evidence into one bounded, auditable record without upgrading any claim beyond the underlying evidence.  
-**Source branch:** `asvh-whole-stack-hostile-review`  
+**Source engineering branch:** `asvh-whole-stack-hostile-review`  
+**Consolidation branch:** `asvh-consolidated-evidence-redteam`  
 **Final whole-stack verification run:** `34632308295`
 
 ---
@@ -11,449 +12,274 @@
 
 The ASVH reference harness has reached a defensible stopping point for its present local claim surface.
 
-The accumulated engineering record demonstrates, **within the declared reference-harness inputs and trust assumptions**, a composed pre-consequence authority boundary that tests and constrains:
+Within the declared reference-harness inputs and trust assumptions, the implementation remained consistent with its declared tested invariants after the accumulated hostile conditions represented by HARDEN-001 through HARDEN-009 and the whole-stack hostile review through Pass 32. The final verification run `34632308295` completed successfully across that accumulated suite.
 
-- exact clinical consequence binding;
-- present-standing continuity through the consequence-formation interval;
-- separation of authority determination, protected execution and consequence evidence;
-- contracted evidence-source authority and provenance semantics;
-- deployment-profile and protected-route enforcement inside the reference boundary;
-- recovery/high-watermark semantics;
-- verification-evidence integrity and reproducibility semantics;
-- policy/ruleset transition and rollback handling;
-- distributed execution-authority fencing semantics; and
-- whole-stack composition against stale, incoherent, replayed, substituted, malformed, structurally meaningless and semantically unsupported authority evidence.
+The evidence supports a bounded pre-consequence authority model covering exact clinical consequence binding, present-standing continuity, separation of determination from execution and consequence evidence, evidence-contract semantics, deployment/profile enforcement inside the modelled boundary, recovery/high-watermark behaviour, policy transition, replay/fencing semantics and hostile whole-stack composition.
 
-The final whole-stack verification run `34632308295` passed HARDEN-001 through HARDEN-009 and all accumulated whole-stack hostile passes through Pass 32.
+This evidence does **not** establish production NHS safety, a production security certification, real EPR non-bypassability, external truth of supplied evidence, production IAM/key custody, production distributed consensus, organisational independence, or production-grade external anchoring.
 
-This is **not** evidence of a production NHS deployment, production security certification, real EPR non-bypassability, external truth of supplied evidence, or production-grade external anchoring.
+The local engineering question is therefore substantially closed. The next programme must answer two separate real-world questions:
 
-The engineering programme has therefore answered a narrower question than “is this safe for the NHS?” It has established that the proposed runtime-authority pattern can be made internally coherent and hostile-tested inside the reference implementation. The next evidential question is whether a real ambient-scribing deployment can expose authoritative, current and appropriately bound evidence at the pre-commit boundary.
+1. **Determination Viability:** can a real ambient-scribing deployment expose authoritative, current, appropriately bound evidence at the pre-commit boundary so that the required runtime determination can be made?
+2. **Enforcement Viability:** if such a determination can be made, can the real governed EPR consequence be conditioned on that current authority result without an equivalent execution route around it?
+
+Success on Determination Viability does not imply success on Enforcement Viability.
 
 ---
 
-## 2. What is being verified
+## 2. Four propositions that must remain separate
 
-The reference pattern separates four propositions that must not be collapsed:
+The ASVH evidence model separates four propositions:
 
-1. **Authority determination** — whether the conditions represented to Runtime Authority support ALLOW, ESCALATE or REFUSE for the exact governed action.
-2. **Protected execution authority** — whether an execution attempt is still entitled to rely on that determination for the exact consequence now being attempted.
-3. **Consequence formation** — whether the governed target consequence actually formed, was prevented, or remains indeterminate.
-4. **Evidence provenance** — what evidence was relied upon and whether it was admissible under a declared ControlContract.
+1. **Authority determination** — whether the admitted evidence supports `ALLOW`, `ESCALATE` or `REFUSE` for the exact governed action.
+2. **Protected execution authority** — whether an execution attempt remains entitled to rely on that determination for the exact consequence now attempted.
+3. **Consequence formation** — whether the governed target consequence actually became `FORMED`, was `PREVENTED`, or remains `INDETERMINATE`.
+4. **Evidence provenance** — what evidence was relied upon and whether it was admissible under the applicable versioned ControlContract.
 
-A positive result in one proposition does not prove the others.
-
-In particular:
-
-- an Authority Receipt is determination evidence, not bearer execution authority;
-- executor success is not itself independently established consequence evidence;
-- timeout is not proof of prevention;
-- a Runtime Context value is not authoritative merely because it is present; and
-- cryptographic/reference integrity does not make semantically invalid content admissible.
+A positive result in one proposition does not prove the others. An Authority Receipt is determination evidence, not bearer execution authority. Executor success is not independently established consequence evidence. Timeout is not proof of prevention. Presence of a Runtime Context value does not make that value authoritative. Integrity-valid content may still be semantically inadmissible.
 
 ---
 
-## 3. Declared execution boundary
+## 3. Declared reference execution boundary
 
 The hardened reference path is conceptually:
 
-`Declared evidence sources -> Evidence Contract evaluation -> Runtime Authority determination -> Authority Receipt -> exact-consequence Protected Clinical Bind -> present-standing / policy / recovery / distributed fencing re-establishment -> protected execution route -> target consequence -> consequence reconciliation/evidence`
+`Declared evidence sources -> Evidence Contract evaluation -> Runtime Authority determination -> Authority Receipt -> exact-consequence Protected Clinical Bind -> present-standing / policy / recovery / fencing re-establishment -> protected execution route -> target consequence -> consequence reconciliation/evidence`
 
-The decisive design principle is that **a previous ALLOW is insufficient by itself**. Outstanding authority remains conditional on exact consequence identity, current standing, applicable policy/rules, deployment profile, replay state and the other controls declared by the composition contract.
-
-The reference harness deliberately distinguishes the point at which authority is determined from the point at which the consequence forms.
+A previous `ALLOW` is insufficient by itself. Outstanding authority remains conditional on exact consequence identity, current standing, applicable policy/rules, deployment profile, replay state and the other controls declared by the composition contract.
 
 ---
 
-## 4. Hardening evidence chain
+## 4. NHS guidance-to-runtime engineering lineage
+
+ASVH-TRACE-001 v1.0 is the engineering traceability source for the original ambient-scribing rule set. Its declared traceability chain is:
+
+`NHS Guidance -> Runtime Context -> Runtime Rule -> Authority Receipt -> Verification Scenario`
+
+It classifies runtime artefacts as **Direct**, **Contextual** or **Derived**. The consolidated evidence record imports that engineering lineage; it does **not** independently reinterpret NHS England guidance or claim that the later hardening controls themselves are directly mandated by NHS guidance.
+
+| Runtime Rule | Primary Runtime Context | TRACE classification | Original verification scenarios | Relationship to later hardening |
+|---|---|---|---|---|
+| RA-AS-001 Target Commit Path Available | RC-006 Target Commit Path Available | Direct | AS-001, AS-004 | Later route/profile and protected-execution work tests how a declared commit path can be bound and defended inside the reference harness. |
+| RA-AS-002 Output Reviewed | RC-003 Output Reviewed | Direct | AS-001, AS-002 | Later evidence-contract work tests whether the asserted state is admissible evidence; it does not assess review quality. |
+| RA-AS-003 Output Approved | RC-004 Output Approved | Direct | AS-001, AS-003 | Later evidence/binding work does not convert approval into clinical correctness or prove the authority of a real-world approver. |
+| RA-AS-004 Execution Type Identified | RC-008 Execution Type | Derived | AS-001, AS-007 | Exact-consequence and schema/profile hardening constrain how an execution request is represented and bound. |
+| RA-AS-005 Intended Use Maintained | RC-005 Intended Use | Direct | AS-001, AS-005 | Evidence-contract and policy-transition work constrain source, context and version semantics for this class of fact. |
+| RA-AS-006 Operational Context Valid | RC-009 Operational Context | Contextual | AS-001, AS-008 | Present-standing, recovery, policy and distributed-fencing hardening test changing operational state in the reference model. |
+| RA-AS-007 Workflow Context Valid | RC-007 Workflow Context | Contextual | AS-001, AS-006 | Present-standing and cross-layer coherence tests constrain stale or substituted workflow/context state. |
+
+ASVH-TRACE-001 also lists RC-001 Consultation Active, RC-002 Clinician Authenticated and RC-010 Approved Product Status as contextual Runtime Context elements. Their presence in the engineering catalogue does not establish the authoritative NHS source for those facts in any real deployment.
+
+**Traceability boundary:** this consolidated record relies on the versioned ASVH traceability publication for the guidance-to-rule engineering mapping. It does not reproduce or independently revalidate every underlying NHS source passage. Passage-level source provenance must remain versioned in ASVH-METH-001 / ASVH-TRACE-001 and must be rechecked if the applicable guidance changes.
+
+---
+
+## 5. Hardening evidence chain
 
 ### HARDEN-001 — Exact Clinical Commit & Protected Execution Bind
 
-Purpose: bind execution authority to the exact clinical consequence rather than treating ALLOW as reusable authority.
-
-The initial frozen conformance suite passed, but hostile review exposed a critical weakness: a fabricated persisted Protected Clinical Bind with a forged receipt identifier and matching exact-commit binding could reach `EXECUTED`.
-
-Preserved finding: **HC-H1-FR-001 — Fabricated persisted bind accepted.**
-
-This finding established that structural validity and exact-action binding did not prove bind provenance. The failure was retained and later remediated in the reference harness. Subsequent whole-stack passes further constrained bind integrity, semantic identity, supported schemas/profiles and runtime-authority versions.
+The original frozen suite passed, but hostile review preserved a critical finding: a fabricated persisted Protected Clinical Bind with a forged receipt identifier and matching exact-commit binding could reach `EXECUTED`. That finding established that structural validity and exact-action binding did not prove bind provenance. Later remediation and whole-stack review added integrity, single-use, semantic identity and declared profile/version constraints.
 
 ### HARDEN-002 — Present Standing / Authority Continuity
 
-Purpose: test whether authority remains usable through the protected Consequence Formation Interval when relevant state can change after the original determination.
-
-Controls are classified as `SNAPSHOT`, `PRESENT_AT_EXECUTION` or `CONTINUOUS`. Present/continuous conditions are re-established around atomic bind claim and immediately before consequence formation. Monotonic `(state_epoch, sequence)` high-watermark semantics prevent older accepted state from silently restoring authority inside the declared reference boundary.
-
-Permitted interpretation: a prior ALLOW plus a valid Protected Clinical Bind is insufficient when a decisive present-standing condition is no longer in standing.
+The reference harness classifies controls as `SNAPSHOT`, `PRESENT_AT_EXECUTION` or `CONTINUOUS`. Present/continuous conditions are re-established around execution and immediately before consequence formation. Reference high-watermark semantics prevent older accepted state from silently restoring authority inside the declared boundary.
 
 ### HARDEN-003 — Consequence Evidence & Reconciliation
 
-Purpose: separate execution attempt from evidence that the governed consequence formed.
-
-Consequence states are:
-
-- `FORMED`
-- `PREVENTED`
-- `INDETERMINATE`
-
-The reference harness uses stable consequence identity and target read-back reconciliation. Lost acknowledgement or timeout is not directly mapped to prevention. Duplicate retry cannot create a second simulated governed consequence within the tested boundary.
+The harness separates `FORMED`, `PREVENTED` and `INDETERMINATE`. Lost acknowledgement or timeout is not mapped directly to prevention. Stable consequence identity supports reconciliation and duplicate-retry control inside the target simulator boundary.
 
 ### HARDEN-004 — Evidence Contracts & Authoritative Source Semantics
 
-Purpose: test whether a runtime fact is **admissible evidence** for the fact used in authority determination. It explicitly does not test whether the underlying real-world assertion is objectively true.
-
-Evidence statuses are:
-
-- `VALID`
-- `ABSENT`
-- `STALE`
-- `INVALID`
-- `CONTRADICTORY`
-- `UNVERIFIABLE`
-- `REVOKED`
-
-A versioned `ControlContract` defines permitted authoritative sources, required fields, temporal validity, deployment/product binding, predicates, conflict/source-substitution semantics, failure semantics and receipt requirements.
-
-Key rule: the requesting AI system cannot make itself authoritative for a contracted external fact merely by asserting that fact.
-
-The implemented controls are synthetic reference controls. `DEPLOYMENT_REGISTRY` and `TRAINING_REGISTRY` are **not claims about actual NHS authoritative systems**.
+The harness evaluates whether a runtime fact is admissible under a versioned ControlContract; it does not establish that the underlying real-world assertion is objectively true. Evidence states include `VALID`, `ABSENT`, `STALE`, `INVALID`, `CONTRADICTORY`, `UNVERIFIABLE` and `REVOKED`. Synthetic `DEPLOYMENT_REGISTRY` and `TRAINING_REGISTRY` sources are reference controls only and are not asserted to be NHS authoritative sources.
 
 ### HARDEN-005 — Deployment Boundary & Route Closure
 
-Purpose: test deployment enforcement inside the reference harness.
+Hostile review preserved route-set substitution, profile identity substitution, ControlContract authority expansion and break-glass weaknesses before remediation. The resulting claim is bounded to exact active deployment-profile and declared-route enforcement inside the reference harness. Real EPR alternate-route closure remains NOT DEMONSTRATED.
 
-Hostile review exposed same-version route-set substitution, profile identity substitution, ControlContract authority expansion, break-glass replay and future-issued break-glass acceptance. These failures were preserved before remediation.
+### HARDEN-006 — Recovery / Reference Independence Semantics
 
-The resulting bounded model binds execution to an exact active deployment profile, declared protected routes and active ControlContract version, with a separately governed break-glass authority domain.
+Hostile review preserved high-watermark read failure, local recovery-store replacement, unsupported independence-level and counter-type failures. The remediation introduced a secondary reference persistence anchor. That anchor models stronger recovery separation inside the harness; it is not evidence of production infrastructure, organisational or cryptographic independence.
 
-This does **not** establish that all alternate routes to a real NHS EPR are closed.
+### HARDEN-007 — Evidence Pack Integrity & Reproducibility — STATUS RECONCILED
 
-### HARDEN-006 — Independence, Recovery & Authority-Service Failover
+The earlier HARDEN-007 specification was labelled `FROZEN DESIGN — IMPLEMENTATION PENDING`. That historical status is superseded by the later remediation/verification record and must not be read as the current state.
 
-Purpose: prevent recovery/failover from silently restoring stale authority.
+Preserved first executable run `34610483182` contained a HARDEN-007 conformance failure caused by the H7-019 test fixture raising `FileNotFoundError`. It was classified as a **test-harness / fixture failure**, not evidence that the manifest algorithm had passed. The failure remains part of the record.
 
-Preserved hostile failures included durable high-watermark read failure, local recovery-store replacement resurrecting stale authority, unsupported independence level, and boolean-as-integer authority counters.
+Remediation commit: `c8a9a9f1ebdf59332eced8a195c9feaf3355280a`.
 
-The remediation introduced a second reference persistence anchor and explicit fail-safe semantics. That anchor is a **reference-harness model of an external recovery anchor**, not evidence that a production independent failure domain exists.
+Re-verification run `34610838030` passed HARDEN-001 through HARDEN-006 regressions, frozen H7-001 through H7-020, and the HARDEN-007 hostile review. The hostile review exercised manifest substitution, omission of a failing test from the aggregate root, duplicate-ID shadowing and path escape.
 
-### HARDEN-007 — Evidence Pack Integrity & Reproducibility
-
-Purpose: strengthen the evidential basis for verification claims by binding code, test inventory, policy/profile inputs and evidence artefacts to a run.
-
-The design requires deterministic manifests, SHA-256 artefact digests, explicit completeness states and distinction between outcome reproduction and byte-for-byte evidence reproduction.
-
-The final whole-stack run includes the HARDEN-007 regression path. The consolidated record does not independently elevate this into production notarisation, external timestamping, hardware signing or repository-owner independence.
+Current bounded status: **VERIFICATION-EVIDENCED WITHIN THE DECLARED REFERENCE-HARNESS BOUNDARY**. The evidence supports deterministic SHA-256 manifest/inventory integrity semantics as implemented. It does not establish external notarisation, external timestamping, hardware-backed signing, KMS/HSM trust, repository-owner independence, archival durability or NHS/supplier evidence-store integration.
 
 ### HARDEN-008 — Policy Transition & Outstanding Authority
 
-Purpose: ensure outstanding authority does not silently survive a material policy/ruleset transition.
-
-Preserved finding: **HC-H8-FR-001 — lexical policy-version comparison could permit rollback.** An accepted `10.0` followed by `2.0` could be ordered incorrectly by lexical string comparison.
-
-Remediation changed ordering to dotted numeric version tuples and made non-comparable versions explicit rather than permissive.
+A preserved hostile failure showed lexical policy-version ordering could mistake `2.0` as later than `10.0`. Remediation moved the bounded reference model to dotted-numeric comparison and explicit indeterminate handling for non-comparable values.
 
 ### HARDEN-009 — Distributed Failure & Split-Brain Authority
 
-Purpose: model distributed execution-authority fencing, stale-replica promotion, split-brain conflict handling, failover and pre-consequence re-establishment.
-
-Preserved hostile findings included node substitution, lease substitution, impossible negative replica age and authority-epoch substitution at pre-consequence check.
-
-The resulting bounded model uses monotonic authority epoch and lease identity, while requiring state/policy position and freshness to remain coherent.
-
-It is a **reference-model distributed authority semantic**, not proof of production consensus, linearizability, quorum fencing, real network partitions or cloud-region isolation.
+The reference model exercises authority epoch, lease identity, node coherence and freshness immediately before consequence formation. Preserved hostile failures included node, lease and authority-epoch substitution and impossible negative freshness. This is reference-model distributed-authority semantics, not production consensus, linearizability, quorum fencing or network-partition proof.
 
 ---
 
-## 5. Whole-stack hostile review
+## 6. Whole-stack hostile review
 
-Component-level PASS was deliberately not treated as system-level proof.
+Component-level PASS was not treated as system-level proof. The whole-stack review repeatedly demonstrated that individually functioning controls could still compose unsafely when an adverse upstream result was not decisive at the final execution boundary.
 
-The whole-stack review attacked the composition after HARDEN-001 through HARDEN-009 had individually accumulated green evidence. Early whole-stack attacks demonstrated that individually functioning controls could still be bypassed when their results were not decisive at the final execution boundary.
+The review method was failure-first: freeze hostile condition, execute, preserve failure, remediate, rerun the accumulated regression, retain the original failure.
 
-The review therefore proceeded failure-first: freeze hostile condition, execute, preserve failure, remediate, rerun the full accumulated regression, and retain the original failure.
+By closure at Pass 32, the accumulated review constrained cross-layer identity/coherence, evidence integrity and freshness, authority epoch/lease/policy/rules/ControlContract/profile binding, protected-bind integrity and replay, break-glass semantics, trusted execution-time semantics, exact-commit policy/rules coherence, type validity, meaningful identities and closed supported schema/profile/runtime-authority versions.
 
-By closure at Pass 32, the accumulated suite constrained at least:
-
-- no lower-layer positive result overriding adverse upstream authority state;
-- recovery and evidence-contract status being decisive in composition;
-- cross-layer deployment/subject/product/consequence identity coherence;
-- composition-evidence integrity, producer identity and freshness;
-- authority epoch, lease, policy, rules, ControlContract and deployment-profile version binding;
-- Protected Clinical Bind integrity and single-use replay semantics across process/restart/reference-store boundaries;
-- operational replay-store rollback/replacement inside the modelled failure domain;
-- break-glass integrity, replay, temporal and semantic admission;
-- trusted execution-time type semantics;
-- exact-commit policy/rules coherence on ordinary and break-glass paths;
-- positive exact-integer fence/version semantics;
-- meaningful lease identity;
-- deployment-profile structural semantics;
-- malformed integrity-reference handling;
-- exact boolean integrity semantics;
-- protected-bind semantic identity;
-- closed supported consequence/bind profiles; and
-- closed supported runtime-authority versions.
-
-Final verification run: **34632308295 — PASS**.
+Final code verification run: **34632308295 — PASS** across HARDEN-001 through HARDEN-009 and the accumulated whole-stack hostile review through Pass 32.
 
 ---
 
-## 6. What the evidence supports
+## 7. Supported claims and explicit non-claims
 
-The following statement is supportable from the current reference-harness record:
+Supportable bounded statement:
 
 > Within the inputs and trust assumptions implemented by the ASVH reference harness, consequence formation is defended against the tested classes of stale, incoherent, replayed, substituted, malformed, structurally meaningless and semantically unsupported authority evidence.
 
-A second supportable statement is:
+Also supportable:
 
-> Within the ASVH reference-harness boundary, contracted runtime facts are not accepted solely because a value is present in Runtime Context. Source authority, subject/context binding, temporal validity, required provenance and explicit failure semantics are evaluated against a versioned ControlContract.
+> Within the ASVH reference-harness boundary, contracted runtime facts are not accepted solely because a value is present in Runtime Context; source authority, subject/context binding, temporal validity, required provenance and explicit failure semantics are evaluated against a versioned ControlContract.
 
-And:
+Also supportable:
 
-> Within the ASVH reference-harness boundary, authority determination, protected execution authority and consequence evidence are represented as separate propositions rather than being inferred from one another.
+> Within the ASVH reference-harness boundary, authority determination, protected execution authority and consequence evidence are represented as separate propositions rather than inferred from one another.
 
-These statements must remain coupled to the phrase **within the declared reference-harness boundary**.
-
----
-
-## 7. What the evidence does NOT support
-
-The current evidence does not establish:
-
-- that a real NHS Trust has deployed this architecture;
-- that a real ambient-scribing supplier exposes the required evidence;
-- that any synthetic reference registry corresponds to the authoritative NHS source for a real deployment;
-- that external evidence is factually true;
-- that a clinician is competent;
-- that an ambient-scribing product is clinically safe or effective;
-- regulatory compliance;
-- organisational AI readiness;
-- production IAM correctness;
-- production key custody/rotation or KMS/HSM security;
-- formal verification;
-- production distributed consensus or linearizable fencing;
-- real network/region/AZ isolation;
-- real EPR route closure or platform-level non-bypassability;
-- production consequence provenance or EPR transaction atomicity;
-- external trusted-time integrity;
-- production compatibility negotiation across versions; or
-- availability/atomicity of a real external durable or monotonic replay/fencing service.
-
-No public, commercial or technical statement should silently convert a reference-model PASS into any of those claims.
+The evidence does **not** establish a real NHS deployment, a real supplier evidence perimeter, objective truth of external evidence, clinician competence, clinical safety/effectiveness, regulatory compliance, production IAM/key custody, formal verification, production distributed consensus, real EPR route closure, production consequence provenance, trusted external time, production compatibility negotiation, or availability/atomicity of a real external durable monotonic fencing service.
 
 ---
 
-## 8. Critical unresolved boundary: Authority Receipt provenance
+## 8. Independence classification
 
-The protected bind carries `authority_receipt_id`, but the whole-stack coordinator is not supplied the originating Authority Receipt or an authoritative receipt registry.
+The word **independent** must be qualified.
 
-Therefore the current whole-stack boundary cannot independently establish that the referenced receipt:
+**Demonstrated in the reference harness:** bounded logical/component separation of Runtime Authority behaviour from the action-proposing workflow, deterministic evaluation against declared inputs, and reference controls intended to prevent a caller from simply self-authorising decisive external facts.
 
-- was actually issued by the admitted Runtime Authority;
-- corresponds to the asserted original determination;
-- has not been substituted by an identifier collision or fabricated reference outside the current model; or
-- remains admitted under a real external receipt-provenance authority.
+**Not demonstrated:** separate organisational control, separate cloud/account ownership, production infrastructure failure-domain independence, external key custody, independent evidence-source operation, independent receipt registry operation or external monotonic anchoring.
 
-This is an explicit residual boundary, not an implicit PASS.
-
-A future real-world integration may need an authoritative receipt registry, signed receipt envelope, or other independently verifiable receipt-provenance mechanism. The appropriate production mechanism is **not demonstrated by the current harness**.
+A real pilot must declare the independence level it actually implements rather than inherit a stronger independence claim from the reference architecture.
 
 ---
 
-## 9. Reconnection to the NHS ambient-scribing objective
+## 9. Gate 0 — Authority Receipt provenance: BLOCKING FOR ENFORCEMENT VIABILITY
 
-The hardening programme should not become the objective in its own right.
+The whole-stack coordinator currently receives `authority_receipt_id`, but not the originating Authority Receipt or an authoritative receipt registry capable of independently establishing the receipt's origin and admitted content.
 
-The original engineering objective is to determine whether an independent runtime verification point immediately before AI-assisted clinical documentation is committed to an EPR can evaluate whether the conditions required for that specific commit remain satisfied and preserve evidence of why execution was allowed, escalated or refused.
+Accordingly, the current composition cannot independently prove that a referenced receipt was issued by the admitted Runtime Authority, corresponds to the asserted determination, has not been substituted or fabricated outside the model, or remains valid under a real receipt-provenance authority.
 
-The hardening record strengthens the implementation hypothesis around that execution boundary. It does not by itself establish the NHS-side evidence perimeter.
+**Gate 0 rule:** no real protected-execution pilot may claim that an exact-consequence Protected Clinical Bind is grounded in an admitted Runtime Authority determination until receipt provenance is independently verifiable at the bind/enforcement boundary.
 
-The next phase must therefore move from **synthetic admissibility** to **real evidence availability**.
+Possible mechanisms include an authoritative receipt registry, a signed receipt envelope, or another independently verifiable provenance mechanism. The production mechanism is deliberately **not selected or demonstrated** by the current harness.
 
-For every proposed runtime control, the project should establish:
-
-1. the exact fact required at execution time;
-2. why that fact is material to the governed commit;
-3. whether it is `SNAPSHOT`, `PRESENT_AT_EXECUTION` or `CONTINUOUS`;
-4. the party responsible for the fact;
-5. the actual authoritative source in the target deployment;
-6. how the source can expose the fact at runtime;
-7. subject/product/deployment/version binding;
-8. freshness and revocation semantics;
-9. conflict/source-substitution semantics;
-10. failure outcome (`ALLOW`, `ESCALATE`, `REFUSE` or explicit inability to determine);
-11. what provenance can be retained in the Authority Receipt; and
-12. whether the evidence can be independently revalidated before consequence formation.
-
-Until these questions are answered for a real supplier/Trust workflow, the corresponding production control remains **NOT DEMONSTRATED**.
+Failure to satisfy Gate 0 does not invalidate the determination experiment. It blocks progression from Determination Viability to a stronger Enforcement Viability claim.
 
 ---
 
-## 10. Candidate real-world evidence-contract workstream
+## 10. Experiment 1 — Determination Viability
 
-The existing HARDEN-004 synthetic controls provide useful shapes, not NHS source answers.
+### Objective
 
-Candidate facts for real deployment discovery include, subject to the applicable guidance and local deployment design:
+Determine whether one real ambient-scribing workflow can supply the authoritative runtime evidence needed to make the declared pre-commit determination honestly and reproducibly.
 
-- product/deployment identity and currently admitted version;
-- clinician/user identity and role/entitlement where material;
-- consultation/encounter/workflow identity;
-- reviewed/approved output state where the governed workflow requires it;
-- intended-use/workflow-context state;
-- monitoring or operational state where it is a declared execution condition;
-- escalation-path availability where an ESCALATE outcome requires a reachable authority path;
-- target commit-path identity and availability; and
-- current policy/rules/profile basis used by the execution boundary.
+### A. Guidance/control admission
 
-These are **candidate evidence-discovery questions**, not assertions that NHS guidance mandates FlowSignal fields or that a particular NHS system is authoritative for them.
+For every proposed production runtime control, establish the versioned guidance/organisational basis, classify it as Direct/Contextual/Derived where applicable, identify why the fact is material to the exact governed commit, and record who owns the operational requirement.
 
----
+### B. Source-authority confirmation
 
-## 11. Proposed next verification phase
+Before building an adapter, identify the responsible party and obtain explicit evidence that the named source is authoritative for the specific fact in that deployment. An API containing a value is not authoritative merely because it is convenient or available.
 
-### Phase A — Evidence perimeter discovery
+### C. Deployment-specific ControlContract
 
-Select one real ambient-scribing workflow and identify the supplier, Trust/EPR boundary, exact governed commit and systems that can authoritatively expose each required runtime fact.
+Record subject identity, responsible party, permitted authoritative source(s), required fields, product/deployment/version binding, provenance, integrity requirements, conflict/substitution rules, failure semantics and receipt requirements.
 
-Output: a deployment-specific Evidence Source Register and draft ControlContracts.
+Each time-sensitive control must also define its **authority interval**: observation time, maximum age/validity, revalidation trigger and the event that invalidates outstanding authority. This is the deployment-specific answer to the evidence-to-consequence timing / TOCTOU problem.
 
-### Phase B — Adapter / evidence ingestion
+### D. Read-only evidence ingestion and shadow determination
 
-Build read-only adapters for the agreed authoritative evidence sources. Preserve provenance and avoid allowing the proposing AI system to self-attest decisive external authority state.
+Use read-only adapters against formally supplied interfaces or deployment test environments, keeping synthetic and real evidence clearly distinguished. Run Runtime Authority at the intended pre-commit point in shadow mode and preserve Authority Receipts/discrepancies without claiming that execution was actually prevented.
 
-Output: evidence fixtures captured from real interfaces or formally supplied schemas, with synthetic/test environments clearly distinguished from production evidence.
+### Decisive uncertainty rule
 
-### Phase C — Shadow runtime determination
+A decisive runtime condition that resolves to `ABSENT`, `STALE`, `INVALID`, `CONTRADICTORY`, `UNVERIFIABLE`, `REVOKED`, or otherwise cannot be established according to its ControlContract **must not silently become an executable ALLOW**. The exact `ESCALATE` or `REFUSE` treatment is contract-specific, but unresolved decisive authority is non-permissive for protected execution.
 
-Run Runtime Authority immediately before the target commit in non-enforcing/shadow mode. Compare available evidence with the ControlContracts and classify each decision as ALLOW, ESCALATE, REFUSE or unable-to-determine under the declared rules.
+### Determination Viability exit gate
 
-Output: Authority Receipts and discrepancy register without claiming that execution was actually prevented.
-
-### Phase D — Protected execution pilot
-
-Only after the evidence perimeter is demonstrated should the project test whether the target execution route can be technically bound to a positive current authority result and whether alternate routes remain outside or inside the protected perimeter.
-
-Output: deployment-specific enforcement evidence and explicit bypass inventory.
-
-### Phase E — Consequence reconciliation
-
-Test whether the real target system can provide authoritative evidence that the exact governed commit formed, was prevented, or remains indeterminate.
-
-Output: deployment-specific Consequence Evidence model.
+PASS requires that every decisive fact for the selected workflow has a named authoritative source, proven deployment binding, explicit temporal/failure semantics, runtime accessibility at the required point, and reproducible shadow determinations. Missing facts remain `NOT DEMONSTRATED`; they are not filled by assumption.
 
 ---
 
-## 12. Red-team attack against this consolidated record
+## 11. Experiment 2 — Enforcement Viability
 
-Before this record is treated as an external-facing technical evidence pack, the following attacks were applied to the **claims**, not just the code.
+### Prerequisites
 
-### RT-DOC-01 — “32 hostile passes proves production safety”
+Enforcement Viability cannot begin as a claim-bearing experiment until:
 
-**Attack:** infer production safety/security from the size of the hostile suite.  
-**Result:** REJECTED. Test count is not a production assurance level. The claim remains bounded to tested reference-harness properties.
+- Determination Viability has passed for the selected workflow; and
+- **Gate 0 Authority Receipt provenance has passed**.
 
-### RT-DOC-02 — “Route closure proves EPR non-bypassability”
+### A. Exact governed consequence
 
-**Attack:** convert HARDEN-005 route/profile enforcement into a claim that a real supplier cannot bypass FlowSignal.  
-**Result:** REJECTED. Real EPR/supplier alternate-route closure is not demonstrated.
+Freeze the exact EPR commit/action and its material fields. Recompute the actual attempted material fields at enforcement rather than relying solely on caller-declared values.
 
-### RT-DOC-03 — “Evidence Contract proves the fact is true”
+### B. Protected route and bypass inventory
 
-**Attack:** treat source-admissibility validation as objective truth.  
-**Result:** REJECTED. HARDEN-004 explicitly evaluates admissibility under contract, not real-world truth.
+Identify every known route capable of forming the same material consequence. Establish which route(s) are conditioned on current authority and explicitly list any routes that remain outside the protected perimeter.
 
-### RT-DOC-04 — “Authority Receipt proves the note was written”
+A protected primary route with an equivalent unprotected route is not evidence of non-bypassability.
 
-**Attack:** use an Authority Receipt as consequence evidence.  
-**Result:** REJECTED. HARDEN-003 explicitly separates receipt and consequence evidence.
+### C. Present-standing revalidation
 
-### RT-DOC-05 — “Reference anchor proves independent external anchoring”
+Re-establish every `PRESENT_AT_EXECUTION` / `CONTINUOUS` condition required by the deployment contract immediately before consequence formation. A stale earlier ALLOW must not restore authority after material state changes.
 
-**Attack:** market the secondary SQLite/reference anchor as an independent production trust anchor.  
-**Result:** REJECTED. It is a reference model only.
+### D. Consequence evidence
 
-### RT-DOC-06 — “Distributed tests prove consensus/failover safety”
+Determine whether the real target can authoritatively distinguish `FORMED`, `PREVENTED` and `INDETERMINATE` for the stable consequence identity. Timeout or lost acknowledgement must not be treated as prevention without authoritative reconciliation.
 
-**Attack:** elevate HARDEN-009 into a production distributed-systems claim.  
-**Result:** REJECTED. No production consensus, linearizability, quorum or network-partition proof exists.
+### Enforcement Viability exit gate
 
-### RT-DOC-07 — “Synthetic registry is the NHS authoritative source”
-
-**Attack:** map `DEPLOYMENT_REGISTRY` or `TRAINING_REGISTRY` directly to an NHS source without deployment evidence.  
-**Result:** REJECTED. Actual authoritative sources remain a deployment-discovery question.
-
-### RT-DOC-08 — “Green final run erases historical failures”
-
-**Attack:** present only the final PASS.  
-**Result:** REJECTED. Preserved failures are part of the evidence chain and materially explain what the final controls now mean.
-
-### RT-DOC-09 — “Receipt ID proves receipt provenance”
-
-**Attack:** treat `authority_receipt_id` as independent proof that an admitted receipt exists.  
-**Result:** REJECTED. Receipt provenance is an explicit unresolved boundary.
-
-### RT-DOC-10 — “The hardening programme proves the original NHS guidance mapping”
-
-**Attack:** infer that because the implementation is hardened, every runtime control is directly mandated by NHS guidance.  
-**Result:** REJECTED. The hardening record tests FlowSignal’s technical implementation hypothesis. Guidance-to-control traceability must remain separately sourced and versioned.
-
-**Document red-team conclusion:** the consolidated evidence remains defensible only if the reference-harness qualifier, synthetic-source qualifier, consequence/receipt separation, real-EPR non-bypassability limitation and receipt-provenance gap remain prominent. Removing any of those materially overstates the evidence.
+PASS requires independently verifiable receipt provenance, exact-consequence binding, a documented and tested execution perimeter, explicit residual bypass inventory, current-state revalidation and deployment-specific consequence evidence. Anything less is a narrower partial result, not a production non-bypassability claim.
 
 ---
 
-## 13. Admission gate for a real NHS/supplier pilot
+## 12. Real NHS / supplier pilot admission gate
 
-A proposed pilot should not be represented as execution-authority verification until the following minimum facts are resolved:
-
-| Gate | Required evidence | Current consolidated status |
+| Gate | Required evidence | Current status |
 |---|---|---|
-| Exact governed consequence | Exact EPR commit/action and material fields identified | Reference model demonstrated; deployment-specific instance required |
-| Authoritative evidence sources | Named source and responsible party for every decisive runtime fact | NOT DEMONSTRATED for a real deployment |
-| Runtime accessibility | Evidence available at the pre-commit decision point | NOT DEMONSTRATED for a real deployment |
-| Freshness/revocation | Explicit temporal semantics for decisive evidence | Contract model demonstrated; real values required |
-| Receipt provenance | Originating determination independently verifiable | NOT DEMONSTRATED at whole-stack boundary |
-| Protected route | Target commit path technically conditioned on current authority | Reference model demonstrated; real route closure NOT DEMONSTRATED |
-| Alternate-route inventory | Known paths capable of forming same consequence | NOT DEMONSTRATED for a real deployment |
-| Consequence evidence | Target can establish FORMED/PREVENTED/INDETERMINATE | Simulator demonstrated; real EPR evidence NOT DEMONSTRATED |
-| External anchoring/fencing | Required if production claim depends on rollback/failover resistance | NOT DEMONSTRATED by current harness |
+| Guidance lineage admitted | Versioned source/engineering lineage for each proposed runtime control | Engineering traceability exists in ASVH-TRACE-001; deployment-specific revalidation required |
+| Exact governed consequence | Exact EPR action and material fields identified | Reference model demonstrated; real deployment NOT DEMONSTRATED |
+| Source authority confirmed | Responsible party confirms each decisive source is authoritative for that fact | NOT DEMONSTRATED |
+| Runtime accessibility | Decisive evidence available at required pre-commit point | NOT DEMONSTRATED |
+| Freshness / authority interval | Freshness, revocation, invalidation and revalidation semantics defined | Contract model demonstrated; real deployment values NOT DEMONSTRATED |
+| Independence level declared | Actual logical/infrastructure/organisational separation explicitly stated | Reference logical separation demonstrated; stronger production independence NOT DEMONSTRATED |
+| **Gate 0 receipt provenance** | Originating determination independently verifiable at bind/enforcement boundary | **NOT DEMONSTRATED — BLOCKS ENFORCEMENT VIABILITY** |
+| Protected route | Target commit technically conditioned on current authority | Reference model demonstrated; real route NOT DEMONSTRATED |
+| Alternate-route inventory | Known equivalent consequence-forming routes enumerated/tested | NOT DEMONSTRATED |
+| Consequence evidence | Target can establish FORMED/PREVENTED/INDETERMINATE | Simulator demonstrated; real EPR NOT DEMONSTRATED |
+| External anchoring/fencing | Required where rollback/failover resistance forms part of production claim | NOT DEMONSTRATED |
+
+A pilot may proceed as an evidence-discovery or shadow-determination exercise before all enforcement gates are green, provided its claim surface is explicitly limited. It must not be represented as protected execution if Gate 0 or route closure remains unresolved.
 
 ---
 
-## 14. Current stopping determination
+## 13. Red-team disposition after corrections
 
-The local ASVH hostile-review sequence is closed at Pass 32 for the present claim surface.
+The four red-team defects identified in the first consolidated draft have now been addressed in the document:
 
-Further local hostile passes should not be opened merely to increase test count. A new pass is justified when one of the following materially changes:
+1. HARDEN-007 status is reconciled against its later remediation and verification evidence rather than left apparently contradictory with its earlier design-only specification.
+2. NHS guidance-to-runtime engineering lineage is explicit and separated from later hardening controls; the document does not pretend to have independently revalidated every NHS source passage.
+3. Authority Receipt provenance is elevated from a residual footnote to **Gate 0**, blocking stronger Enforcement Viability claims until independently demonstrated.
+4. The real-world programme is split into **Determination Viability** and **Enforcement Viability**, with success/failure criteria and no implication that the first proves the second.
 
-- the composition contract;
-- an external trust anchor or receipt registry is introduced;
-- durable/replay stores change;
-- a real EPR/supplier topology is integrated;
-- a new authoritative evidence source is admitted;
-- the policy/rule/version compatibility contract changes; or
-- the public/technical claim surface expands.
-
-The next high-value work is **deployment evidence discovery**, not another synthetic attack.
+The engineering baseline remains GREEN within its declared reference-harness boundary. This consolidated record remains **DRAFT / NOT YET FROZEN** until the remaining document-level red team is accepted and deployment-specific facts begin to replace `NOT DEMONSTRATED` entries.
 
 ---
 
-## 15. Proposed bounded external summary
+## 14. Stopping determination
 
-> FlowSignal has built and hostile-tested a reference implementation of an independent runtime verification point for AI-assisted clinical documentation. Within the declared reference-harness boundary, the implementation separates authority determination from protected execution and consequence evidence, binds authority to an exact clinical consequence, re-establishes selected current conditions before consequence formation, applies versioned evidence contracts, and preserves failure-first verification evidence. The accumulated HARDEN-001 through HARDEN-009 and whole-stack hostile review closed at Pass 32 with the final regression suite green. This does not establish NHS deployment, clinical safety, regulatory compliance, production non-bypassability or the truth of external evidence. The next verification step is to establish, with a real supplier/Trust workflow, which authoritative runtime evidence can actually be exposed and independently revalidated immediately before EPR commit.
+The local ASVH hostile-review sequence remains closed at Pass 32 for the current reference-harness claim surface. New local hostile passes should be opened only when the composition contract, receipt-provenance mechanism, external trust anchor, durable store, production integration topology, authoritative evidence source or declared claim surface materially changes.
 
----
-
-## 16. Red-team questions for independent review
-
-An independent reviewer should try to falsify this record by answering:
-
-1. Where does the document imply a production property from a reference-model test?
-2. Which asserted control lacks a traceable evidence source or preserved failure record?
-3. Which whole-stack positive outcome can still be assembled from individually valid but mutually incoherent evidence?
-4. Can a receipt identifier be substituted without independent receipt provenance?
-5. Can the same real EPR consequence be formed through a route outside the declared protected route?
-6. Which runtime facts are currently supplied by synthetic sources that would be unavailable or non-authoritative in a real Trust?
-7. Can an external state change after the final check but before consequence formation without detection?
-8. Which fail-safe result is operationally indistinguishable from an outage and therefore needs an explicit escalation/service design?
-9. Does any claim depend on trusted time, durable monotonic state, signing authority or identity infrastructure that the harness only models locally?
-10. Can the original NHS guidance-to-runtime-control traceability be independently reconstructed without relying on FlowSignal’s interpretation?
-
-Any material failure against those questions should be preserved and should reopen the relevant evidence boundary rather than being explained away.
+The next useful falsification work is therefore not additional synthetic test count. It is to determine, against one real ambient-scribing workflow, whether **Determination Viability** exists and, only if that is demonstrated and Gate 0 is satisfied, whether **Enforcement Viability** exists.
