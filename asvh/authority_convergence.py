@@ -39,6 +39,7 @@ class PolicyPositionVerifier:
     authoritative_source_id:str; expected_context:str; max_age_seconds:int; verify_attestation:Callable[[TrustPolicyPosition],bool]; expected_attempt_id:str=""
     def verify(self,p):
         try:
+            if not p.source_id or not p.observation_context or not p.attempt_id:return False
             if p.source_id!=self.authoritative_source_id or p.observation_context!=self.expected_context:return False
             if self.expected_attempt_id and p.attempt_id!=self.expected_attempt_id:return False
             if p.policy_revision<0 or p.authority_epoch<0 or p.age_seconds<0 or p.age_seconds>self.max_age_seconds:return False
@@ -48,9 +49,14 @@ class PolicyPositionVerifier:
 @dataclass(frozen=True)
 class ConsequenceBind:
     policy_revision:int; policy_digest:str; authority_epoch:int; observation_context:str; source_id:str=""; attestation_digest:str=""; attempt_id:str=""
+    def complete(self):
+        return self.policy_revision>=0 and self.authority_epoch>=0 and bool(self.policy_digest) and bool(self.observation_context) and bool(self.source_id) and bool(self.attestation_digest) and bool(self.attempt_id)
     def digest(self):
+        if not self.complete():raise ValueError("incomplete consequence bind")
         p={"policy_revision":self.policy_revision,"policy_digest":self.policy_digest,"authority_epoch":self.authority_epoch,"observation_context":self.observation_context,"source_id":self.source_id,"attestation_digest":self.attestation_digest,"attempt_id":self.attempt_id};return hashlib.sha256(json.dumps(p,separators=(",",":"),sort_keys=True).encode()).hexdigest()
-def bind_from_position(p):return ConsequenceBind(p.policy_revision,p.policy_digest,p.authority_epoch,p.observation_context,p.source_id,hashlib.sha256(p.attestation.encode()).hexdigest(),p.attempt_id)
+def bind_from_position(p):
+    if not p.source_id or not p.attestation or not p.observation_context or not p.attempt_id:raise ValueError("incomplete policy position")
+    return ConsequenceBind(p.policy_revision,p.policy_digest,p.authority_epoch,p.observation_context,p.source_id,hashlib.sha256(p.attestation.encode()).hexdigest(),p.attempt_id)
 @dataclass
 class AuthorityConvergenceState:
     recovery_trusted:bool=False; recovery_policy_revision:int|None=None; recovery_policy_digest:str|None=None; high_watermarks:dict[tuple[str,str],int]=field(default_factory=dict); revision_status:dict[tuple[str,str,int],str]=field(default_factory=dict)
@@ -111,17 +117,24 @@ def consequence_time_converge(read_current:Callable[[],DependencyBasis],max_age_
         try:p=read_policy_position()
         except Exception:return ConvergenceResult.INDETERMINATE,None
         if not state.policy_still_current(p,policy_position_verifier):return ConvergenceResult.INDETERMINATE,None
-        bind=bind_from_position(p)
+        try:bind=bind_from_position(p)
+        except Exception:return ConvergenceResult.INDETERMINATE,None
     try:result=converge(read_current(),max_age_seconds,requirements=requirements,state=state)
     except Exception:return ConvergenceResult.INDETERMINATE,None
     return result,(bind if result==ConvergenceResult.ACTIVE else None)
 def final_bind_and_execute(*,expected_bind,read_policy_position,policy_position_verifier,execute):
     """Reference final bind. Callback invocation is not a production non-bypassability claim."""
     if expected_bind is None:return ConvergenceResult.INDETERMINATE
+    try:
+        if not expected_bind.complete():return ConvergenceResult.INDETERMINATE
+    except Exception:return ConvergenceResult.INDETERMINATE
     try:p=read_policy_position()
     except Exception:return ConvergenceResult.INDETERMINATE
     if not policy_position_verifier.verify(p):return ConvergenceResult.INDETERMINATE
-    current=bind_from_position(p)
-    if current.digest()!=expected_bind.digest():return ConvergenceResult.INDETERMINATE
+    try:current=bind_from_position(p)
+    except Exception:return ConvergenceResult.INDETERMINATE
+    try:
+        if current.digest()!=expected_bind.digest():return ConvergenceResult.INDETERMINATE
+    except Exception:return ConvergenceResult.INDETERMINATE
     try:return execute(expected_bind)
     except Exception:return ConvergenceResult.INDETERMINATE
