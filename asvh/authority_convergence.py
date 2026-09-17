@@ -29,17 +29,27 @@ class RecoveryVerifier:
 class RecoveryTrustPolicy:
     verifier:RecoveryVerifier; required_authorities:frozenset[tuple[str,str]]; policy_revision:int=0; standing:str="UNKNOWN"
     def digest(self):
-        payload={"policy_revision":self.policy_revision,"standing":self.standing.upper(),"required_authorities":sorted([list(x) for x in self.required_authorities]),"trusted_verifier_ids":sorted(self.verifier.trusted_verifier_ids),"expected_context":self.verifier.expected_context}
-        return hashlib.sha256(json.dumps(payload,separators=(",",":"),sort_keys=True).encode()).hexdigest()
+        p={"policy_revision":self.policy_revision,"standing":self.standing.upper(),"required_authorities":sorted([list(x) for x in self.required_authorities]),"trusted_verifier_ids":sorted(self.verifier.trusted_verifier_ids),"expected_context":self.verifier.expected_context}
+        return hashlib.sha256(json.dumps(p,separators=(",",":"),sort_keys=True).encode()).hexdigest()
     def validate(self,records,evidence):
-        if self.policy_revision<0 or self.standing.upper() not in POSITIVE:return False
-        identities={(r.source_id,r.subject_id) for r in records}
-        if not self.required_authorities or identities!=set(evidence.covered_authorities) or identities!=set(self.required_authorities):return False
-        if len(records)!=len(set(records)) or evidence.trust_policy_digest!=self.digest():return False
-        return self.verifier.verify(records,evidence)
+        ids={(r.source_id,r.subject_id) for r in records}
+        return self.policy_revision>=0 and self.standing.upper() in POSITIVE and bool(self.required_authorities) and ids==set(evidence.covered_authorities)==set(self.required_authorities) and len(records)==len(set(records)) and evidence.trust_policy_digest==self.digest() and self.verifier.verify(records,evidence)
 @dataclass(frozen=True)
 class TrustPolicyPosition:
-    policy_revision:int; policy_digest:str; standing:str
+    policy_revision:int; policy_digest:str; standing:str; source_id:str=""; age_seconds:int=-1; authority_epoch:int=-1; attestation:str=""; observation_context:str=""
+@dataclass(frozen=True)
+class PolicyPositionVerifier:
+    authoritative_source_id:str; expected_context:str; max_age_seconds:int; verify_attestation:Callable[[TrustPolicyPosition],bool]
+    def verify(self,p):
+        if p.source_id!=self.authoritative_source_id or p.observation_context!=self.expected_context:return False
+        if p.policy_revision<0 or p.authority_epoch<0 or p.age_seconds<0 or p.age_seconds>self.max_age_seconds:return False
+        if not p.policy_digest or not p.attestation or p.standing.upper() not in POSITIVE:return False
+        return bool(self.verify_attestation(p))
+@dataclass(frozen=True)
+class ConsequenceBind:
+    policy_revision:int; policy_digest:str; authority_epoch:int; observation_context:str
+    def digest(self):
+        return hashlib.sha256(json.dumps({"policy_revision":self.policy_revision,"policy_digest":self.policy_digest,"authority_epoch":self.authority_epoch,"observation_context":self.observation_context},separators=(",",":"),sort_keys=True).encode()).hexdigest()
 @dataclass
 class AuthorityConvergenceState:
     recovery_trusted:bool=False; recovery_policy_revision:int|None=None; recovery_policy_digest:str|None=None
@@ -49,18 +59,16 @@ class AuthorityConvergenceState:
     @classmethod
     def recover(cls,records,evidence=None,*,trust_policy=None):
         if not records or evidence is None or trust_policy is None or not trust_policy.validate(records,evidence):return cls(recovery_trusted=False)
-        state=cls(True,trust_policy.policy_revision,trust_policy.digest())
+        s=cls(True,trust_policy.policy_revision,trust_policy.digest())
         for r in records:
             if r.revision<0:return cls(recovery_trusted=False)
-            identity=(r.source_id,r.subject_id); key=(r.source_id,r.subject_id,r.revision); status=r.status.upper(); prior=state.revision_status.get(key)
+            identity=(r.source_id,r.subject_id); key=(r.source_id,r.subject_id,r.revision); status=r.status.upper(); prior=s.revision_status.get(key)
             if prior is not None and prior!=status:return cls(recovery_trusted=False)
-            state.revision_status[key]=status; current=state.high_watermarks.get(identity)
-            if current is None or r.revision>current:state.high_watermarks[identity]=r.revision
-        return state
-    def policy_still_current(self,current:TrustPolicyPosition):
-        if not self.recovery_trusted or self.recovery_policy_revision is None or self.recovery_policy_digest is None:return False
-        if current.standing.upper() not in POSITIVE:return False
-        return current.policy_revision==self.recovery_policy_revision and current.policy_digest==self.recovery_policy_digest
+            s.revision_status[key]=status; current=s.high_watermarks.get(identity)
+            if current is None or r.revision>current:s.high_watermarks[identity]=r.revision
+        return s
+    def policy_still_current(self,current,verifier):
+        return self.recovery_trusted and self.recovery_policy_revision is not None and self.recovery_policy_digest is not None and verifier.verify(current) and current.policy_revision==self.recovery_policy_revision and current.policy_digest==self.recovery_policy_digest
     def observe(self,dep):
         if not self.recovery_trusted:return ConvergenceResult.INDETERMINATE
         identity=(dep.source_id,dep.subject_id); previous=self.high_watermarks.get(identity)
@@ -77,14 +85,14 @@ def evaluate_dependency(dep,max_age_seconds=30):
     if s in INDETERMINATE or s not in POSITIVE:return ConvergenceResult.INDETERMINATE
     return ConvergenceResult.ACTIVE
 def converge(basis,max_age_seconds=30,*,requirements=None,state=None):
-    required=[d for d in basis.dependencies if d.required]
-    if not required:return ConvergenceResult.INDETERMINATE
+    req=[d for d in basis.dependencies if d.required]
+    if not req:return ConvergenceResult.INDETERMINATE
     if requirements is not None:
-        expected={(r.authoritative_source_id,r.subject_id) for r in requirements if r.required}; actual={(d.source_id,d.subject_id) for d in required}
+        expected={(r.authoritative_source_id,r.subject_id) for r in requirements if r.required}; actual={(d.source_id,d.subject_id) for d in req}
         if actual!=expected:return ConvergenceResult.INDETERMINATE
         if state is not None and state.recovery_trusted and state.high_watermarks and not expected.issubset(set(state.high_watermarks)):return ConvergenceResult.INDETERMINATE
     seen=set(); same={}; outcome=ConvergenceResult.ACTIVE
-    for dep in required:
+    for dep in req:
         identity=(dep.source_id,dep.subject_id)
         if identity in seen:return ConvergenceResult.INDETERMINATE
         seen.add(identity); ck=(dep.subject_id,dep.revision); prior=same.get(ck)
@@ -93,11 +101,24 @@ def converge(basis,max_age_seconds=30,*,requirements=None,state=None):
         if state is not None:
             m=state.observe(dep)
             if m!=ConvergenceResult.ACTIVE:return m
-        result=evaluate_dependency(dep,max_age_seconds)
-        if result==ConvergenceResult.PREVENTED:return result
-        if result==ConvergenceResult.INDETERMINATE:outcome=result
+        r=evaluate_dependency(dep,max_age_seconds)
+        if r==ConvergenceResult.PREVENTED:return r
+        if r==ConvergenceResult.INDETERMINATE:outcome=r
     return outcome
-def consequence_time_converge(read_current:Callable[[],DependencyBasis],max_age_seconds=30,*,requirements=None,state=None,read_policy_position=None):
+def consequence_time_converge(read_current:Callable[[],DependencyBasis],max_age_seconds=30,*,requirements=None,state=None,read_policy_position=None,policy_position_verifier=None):
+    bind=None
     if state is not None and state.recovery_policy_revision is not None:
-        if read_policy_position is None or not state.policy_still_current(read_policy_position()):return ConvergenceResult.INDETERMINATE
-    return converge(read_current(),max_age_seconds,requirements=requirements,state=state)
+        if read_policy_position is None or policy_position_verifier is None:return ConvergenceResult.INDETERMINATE,None
+        p=read_policy_position()
+        if not state.policy_still_current(p,policy_position_verifier):return ConvergenceResult.INDETERMINATE,None
+        bind=ConsequenceBind(p.policy_revision,p.policy_digest,p.authority_epoch,p.observation_context)
+    result=converge(read_current(),max_age_seconds,requirements=requirements,state=state)
+    return result,(bind if result==ConvergenceResult.ACTIVE else None)
+def final_bind_and_execute(*,expected_bind,read_policy_position,policy_position_verifier,execute):
+    """Reference final bind. Re-reads policy immediately before calling consequence function."""
+    if expected_bind is None:return ConvergenceResult.INDETERMINATE
+    p=read_policy_position()
+    if not policy_position_verifier.verify(p):return ConvergenceResult.INDETERMINATE
+    current=ConsequenceBind(p.policy_revision,p.policy_digest,p.authority_epoch,p.observation_context)
+    if current.digest()!=expected_bind.digest():return ConvergenceResult.INDETERMINATE
+    return execute(expected_bind)
