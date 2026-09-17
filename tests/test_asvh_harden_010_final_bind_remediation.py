@@ -1,11 +1,10 @@
-from asvh.authority_convergence import TrustPolicyPosition,PolicyPositionVerifier,ConsequenceBind,final_bind_and_execute,ConvergenceResult
+from asvh.authority_convergence import TrustPolicyPosition,PolicyPositionVerifier,bind_from_position,final_bind_and_execute,ConvergenceResult
 
 def p(**kw):
-    d=dict(policy_revision=7,policy_digest="d7",standing="ACTIVE",source_id="policy-authority",age_seconds=0,authority_epoch=11,attestation="proof",observation_context="commit-1"); d.update(kw); return TrustPolicyPosition(**d)
+    d=dict(policy_revision=7,policy_digest="d7",standing="ACTIVE",source_id="policy-authority",age_seconds=0,authority_epoch=11,attestation="proof",observation_context="commit-1",attempt_id="attempt-1"); d.update(kw); return TrustPolicyPosition(**d)
 def v(**kw):
-    d=dict(authoritative_source_id="policy-authority",expected_context="commit-1",max_age_seconds=5,verify_attestation=lambda _:True); d.update(kw); return PolicyPositionVerifier(**d)
-def bind():
-    x=p(); return ConsequenceBind(x.policy_revision,x.policy_digest,x.authority_epoch,x.observation_context)
+    d=dict(authoritative_source_id="policy-authority",expected_context="commit-1",max_age_seconds=5,verify_attestation=lambda _:True,expected_attempt_id="attempt-1"); d.update(kw); return PolicyPositionVerifier(**d)
+def bind(): return bind_from_position(p())
 
 def test_r11_valid_final_bind_executes(): assert final_bind_and_execute(expected_bind=bind(),read_policy_position=p,policy_position_verifier=v(),execute=lambda _:"COMMITTED")=="COMMITTED"
 def test_r12_source_substitution_fails_closed(): assert final_bind_and_execute(expected_bind=bind(),read_policy_position=lambda:p(source_id="lookalike"),policy_position_verifier=v(),execute=lambda _:"COMMITTED")==ConvergenceResult.INDETERMINATE
