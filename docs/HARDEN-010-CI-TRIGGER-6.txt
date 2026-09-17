@@ -1,0 +1,1 @@
+No remediation. No assertion changes. Failure-first evidence only.

@@ -1,0 +1,44 @@
+name: ASVH HARDEN-010 Frozen Hostile Attack
+
+on:
+  push:
+    branches: [asvh-harden-010-authority-convergence]
+  workflow_dispatch:
+
+jobs:
+  prior-hardening-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pytest
+      - name: Preserve HARDEN-001 through HARDEN-009
+        run: |
+          pytest -q \
+            tests/test_asvh_harden_001.py tests/test_asvh_harden_001_hostile.py \
+            tests/test_asvh_harden_002.py tests/test_asvh_harden_002_hostile.py \
+            tests/test_asvh_harden_003.py tests/test_asvh_harden_003_hostile.py \
+            tests/test_asvh_harden_004.py tests/test_asvh_harden_004_hostile.py \
+            tests/test_asvh_harden_005.py tests/test_asvh_harden_005_hostile.py \
+            tests/test_asvh_harden_006.py tests/test_asvh_harden_006_hostile.py \
+            tests/test_asvh_harden_007.py tests/test_asvh_harden_007_hostile.py \
+            tests/test_asvh_harden_008.py tests/test_asvh_harden_008_hostile.py \
+            tests/test_asvh_harden_009.py tests/test_asvh_harden_009_hostile.py
+
+  harden-010-red-team:
+    needs: prior-hardening-regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pytest
+      - name: Run all frozen HARDEN-010 attacks — expected RED before remediation
+        run: |
+          pytest -q \
+            tests/test_asvh_harden_010_authority_convergence.py \
+            tests/test_asvh_harden_010_authority_conflict.py \
+            tests/test_asvh_harden_010_toctou.py
