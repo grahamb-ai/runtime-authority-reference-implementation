@@ -40,8 +40,9 @@ class PolicyPositionVerifier:
     def verify(self,p):
         try:
             if not p.source_id or not p.observation_context or not p.attempt_id:return False
+            if not self.expected_attempt_id:return False
             if p.source_id!=self.authoritative_source_id or p.observation_context!=self.expected_context:return False
-            if self.expected_attempt_id and p.attempt_id!=self.expected_attempt_id:return False
+            if p.attempt_id!=self.expected_attempt_id:return False
             if p.policy_revision<0 or p.authority_epoch<0 or p.age_seconds<0 or p.age_seconds>self.max_age_seconds:return False
             if not p.policy_digest or not p.attestation or p.standing.upper() not in POSITIVE:return False
             return bool(self.verify_attestation(p))
