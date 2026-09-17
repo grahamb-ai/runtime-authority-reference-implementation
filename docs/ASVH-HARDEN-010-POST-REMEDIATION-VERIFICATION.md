@@ -2,13 +2,15 @@
 
 ## Status
 
-REFERENCE-MODEL REMEDIATION VERIFIED WITH DECLARED OPEN ARCHITECTURAL RESIDUAL
+REFERENCE-MODEL WHOLE-CHAIN VERIFICATION EVIDENCED WITH DECLARED OPEN ARCHITECTURAL RESIDUAL
 
 ## Candidate
 
 Branch: `asvh-harden-010-remediation-candidate`
 
 Relevant implementation remediation commit: `fb57f8338c1ea723b06759a5952cce4281b9a57c`
+
+Whole-chain hostile-suite commit: `0e26171b15e54b5a1457d1cb0b5a8fdeca386084`
 
 ## Environment
 
@@ -46,6 +48,49 @@ Observed after exact-attempt remediation:
 ```
 
 The legitimate complete-bind path and the bounded fail-closed cases represented by that suite remain green.
+
+## HARDEN-010 whole-chain hostile verification
+
+`tests/test_asvh_harden_010_whole_chain_hostile.py`
+
+HR60–HR72 exercise the reference path across:
+
+1. authoritative dependency observation;
+2. dependency convergence;
+3. current trust-policy standing;
+4. exact execution-attempt identity;
+5. consequence-bind construction;
+6. final authoritative policy reread;
+7. reference consequence callback.
+
+The suite attacks dependency revocation and unknown state, policy revocation, wrong or absent expected attempt identity, post-bind policy digest change, authority-epoch change, attempt substitution, policy-source substitution, attestation change, and final policy-reader failure. HR60 is the legitimate control path.
+
+Observed result:
+
+```text
+13 passed
+```
+
+Status: GREEN within the declared Python reference-model boundary.
+
+This result does not close the downstream executor-enforcement residual described under HC-H10-FR-041.
+
+## Combined post-remediation verification run
+
+A single local run combined:
+
+- HARDEN-001 through HARDEN-009 normal and hostile suites;
+- HARDEN-010 final-bind remediation suite;
+- HARDEN-010 exact-attempt hostile suite; and
+- HARDEN-010 whole-chain hostile suite.
+
+Observed result:
+
+```text
+225 passed in 2.81s
+```
+
+This is the current local executable regression/verification baseline for the bounded positive reference-model path. The deliberately open HR56 executor-enforcement attack is excluded from this green aggregate and remains separately preserved as RED evidence.
 
 ## HC-H10-FR-039 — Missing attempt identity accepted
 
@@ -115,7 +160,7 @@ This is not being patched inside the arbitrary Python callback model because doi
 
 ## Claim boundary
 
-The current evidence supports the statement that HARDEN-010 reference-model controls now fail closed on missing/incomplete consequence-time binding material and require exact execution-attempt binding, while preserving H1-H9 regression behaviour in the reported local environment.
+The current evidence supports the statement that HARDEN-010's bounded Python reference path has executable evidence for dependency convergence, current policy standing, exact execution-attempt binding, consequence binding and final authoritative reread, while preserving the H1-H9 regression behaviour represented by the reported local suites.
 
 It does **not** demonstrate:
 
