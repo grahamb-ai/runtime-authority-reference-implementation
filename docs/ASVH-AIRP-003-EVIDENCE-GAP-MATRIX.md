@@ -15,21 +15,21 @@ The matrix asks a narrow question:
 
 ## Evidence matrix
 
-| Area | FlowSignal proposition | Evidence | Current classification | Residual gap / next evidence |
-|---|---|---|---|---|
-| Protected consequence | The represented consequence is a synthetic clinical-record commit | ASVH-AIRP-002 scenario and H11 route-closure harness | SUPPORTED WITH BOUNDARY | Actual EPR consequence path not yet integrated |
-| Earlier validity vs present standing | Earlier VALID state is not accepted as evidence that authority still holds at consequence time after relevant state changes | AIRP-002 executable case: T0 ACTIVE; T1 WITHDRAWN/PREVENTED; no bind; no represented commit | SUPPORTED WITH BOUNDARY | Actual AiRP must determine whether this control is relevant to an activated risk |
-| Current authority / NOW | Present standing is re-evaluated at the modeled consequence boundary | HARDEN-010 convergence/final-bind evidence | SUPPORTED WITH BOUNDARY | Production authoritative source and external atomicity not demonstrated |
-| Exact action / MATCH | Consequence binding and payload/attempt substitution checks protect the represented path | HARDEN-010/HARDEN-011 tests | SUPPORTED WITH BOUNDARY | External EPR enforcement of the same binding not demonstrated |
-| Executor / WHO | Tested executor identity/binding prevents several modeled substitutions | H11 second-/third-order evidence | PARTIALLY SUPPORTED | Production IAM/KMS/HSM trust and registry lifecycle not demonstrated |
-| Route closure | Direct and alternate represented writers meet the modeled protected sink boundary | H11 route-closure tests | SUPPORTED WITH BOUNDARY | Universal external EPR non-bypassability not demonstrated |
-| Single-use execution authority | Shared modeled execution authority is consumed once across tested instances | H11 second-/third-order evidence | SUPPORTED WITH BOUNDARY | Correlated rollback of all modeled trust domains can resurrect authority |
-| Rollback resistance | Separate modeled consumption anchor resists rollback of the primary store alone | H11 third-order evidence | PARTIALLY SUPPORTED | Correlated rollback of primary + anchor remains NOT DEMONSTRATED |
-| Trust-anchor availability | Some missing/mismatched trust conditions fail closed | H11 third-order evidence | PARTIALLY SUPPORTED | Loss/recreation of the consumption anchor for an outstanding capability remains NOT DEMONSTRATED |
-| Consequence outcome | Local model can record represented COMMITTED outcome | H11 model | PARTIALLY SUPPORTED | Cannot distinguish actual external consequence CONFIRMED from UNRESOLVED without external protocol |
-| Evidence/reconstruction | Verification chain retains explicit test outcomes and failure/remediation history | HARDEN evidence documents and CI history | SUPPORTED WITH BOUNDARY | Production evidence custody/provenance depends on deployment architecture |
-| AiRP risk activation | FlowSignal can consume runtime context but does not determine ORCHA's proprietary AiRP risk activation | No official AiRP questionnaire available | OUT OF SCOPE | Requires actual AiRP beta/test access |
-| Model quality, hallucination, bias, clinical efficacy, model drift | No FlowSignal assurance claim | Explicit scope boundary | OUT OF SCOPE | Must be addressed by other assurance controls/framework elements |
+| Area | FlowSignal proposition | Evidence | FlowSignal evidence status | AiRP relevance status | Residual gap / next evidence |
+|---|---|---|---|---|---|
+| Protected consequence | The represented consequence is a synthetic clinical-record commit | ASVH-AIRP-002 scenario and H11 route-closure harness | SUPPORTED WITH BOUNDARY | UNTESTED PENDING ACTUAL AiRP | Actual EPR consequence path not yet integrated |
+| Earlier validity vs present standing | Earlier VALID state is not accepted as evidence that authority still holds at consequence time after relevant state changes | AIRP-002 executable case: T0 ACTIVE; T1 WITHDRAWN/PREVENTED; no bind; no represented commit | SUPPORTED WITH BOUNDARY | UNTESTED PENDING ACTUAL AiRP | Actual AiRP must determine whether this control is relevant to an activated risk |
+| Current authority / NOW | Present standing is re-evaluated at the modeled consequence boundary | HARDEN-010 convergence/final-bind evidence | SUPPORTED WITH BOUNDARY | UNTESTED PENDING ACTUAL AiRP | Production authoritative source and external atomicity not demonstrated |
+| Exact action / MATCH | Consequence binding and payload/attempt substitution checks protect the represented path | HARDEN-010/HARDEN-011 tests | SUPPORTED WITH BOUNDARY | UNTESTED PENDING ACTUAL AiRP | External EPR enforcement of the same binding not demonstrated |
+| Executor / WHO | Tested executor identity/binding prevents several modeled substitutions | H11 second-/third-order evidence | PARTIALLY SUPPORTED | UNTESTED PENDING ACTUAL AiRP | Production IAM/KMS/HSM trust and registry lifecycle not demonstrated |
+| Route closure | Direct and alternate represented writers meet the modeled protected sink boundary | H11 route-closure tests | SUPPORTED WITH BOUNDARY | UNTESTED PENDING ACTUAL AiRP | Universal external EPR non-bypassability not demonstrated |
+| Single-use execution authority | Shared modeled execution authority is consumed once across tested instances | H11 second-/third-order evidence | SUPPORTED WITH BOUNDARY | UNTESTED PENDING ACTUAL AiRP | Correlated rollback of all modeled trust domains can resurrect authority |
+| Rollback resistance | Separate modeled consumption anchor resists rollback of the primary store alone | H11 third-order evidence | PARTIALLY SUPPORTED | UNTESTED PENDING ACTUAL AiRP | Correlated rollback of primary + anchor remains NOT DEMONSTRATED |
+| Trust-anchor availability | Some missing/mismatched trust conditions fail closed | H11 third-order evidence | PARTIALLY SUPPORTED | UNTESTED PENDING ACTUAL AiRP | Loss/recreation of the consumption anchor for an outstanding capability remains NOT DEMONSTRATED |
+| Consequence outcome | Local model can record represented COMMITTED outcome | H11 model | PARTIALLY SUPPORTED | UNTESTED PENDING ACTUAL AiRP | Cannot distinguish actual external consequence CONFIRMED from UNRESOLVED without external protocol |
+| Evidence/reconstruction | Verification chain retains explicit test outcomes and failure/remediation history | HARDEN evidence documents and CI history | SUPPORTED WITH BOUNDARY | UNTESTED PENDING ACTUAL AiRP | Production evidence custody/provenance depends on deployment architecture |
+| AiRP risk activation | FlowSignal can consume runtime context but does not determine ORCHA's proprietary AiRP risk activation | No official AiRP questionnaire available | OUT OF SCOPE | UNTESTED PENDING ACTUAL AiRP | Requires actual AiRP beta/test access |
+| Model quality, hallucination, bias, clinical efficacy, model drift | No FlowSignal assurance claim | Explicit scope boundary | OUT OF SCOPE | UNTESTED PENDING ACTUAL AiRP | Must be addressed by other assurance controls/framework elements |
 
 ## Executable AIRP-002 result
 
@@ -55,11 +55,13 @@ Classification for these properties: **NOT DEMONSTRATED beyond the reference-mod
 
 ## What this can support in an ORCHA discussion
 
-The evidence supports investigating whether runtime authority controls can operate as a structural mitigation for a subset of AiRP-activated risks where authority may change between approval and consequential execution.
+The evidence supports investigating whether runtime authority controls could be relevant as a structural mitigation for a subset of AiRP-activated risks where authority may change between approval and consequential execution.
 
 It also supplies explicit residual-gap evidence rather than treating a successful local control test as complete assurance.
 
 ## What this cannot support
+
+**No FlowSignal evidence status in this table is an AiRP finding. AiRP relevance remains UNTESTED until actual ORCHA/AiRP evidence exists.**
 
 This matrix must not be represented as:
 - an official AiRP assessment;
