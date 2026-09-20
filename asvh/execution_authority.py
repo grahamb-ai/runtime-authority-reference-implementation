@@ -64,9 +64,10 @@ class SQLiteExecutionAuthorityStore:
             return cur.rowcount==1
 
 class ExecutionGateway:
-    def __init__(self,store,executor_id,executor_secret,identity_registry=None):
+    def __init__(self,store,executor_id,executor_secret,identity_registry=None,current_standing_reader=None):
         self.store=store; self.executor_id=executor_id; self._secret=executor_secret
         self.identity_registry=identity_registry or ExecutorIdentityRegistry({executor_id:executor_secret})
+        self.current_standing_reader=current_standing_reader
     def executor_proof(self,token):
         return hmac.new(self._secret.encode(),(self.executor_id+"|"+token).encode(),hashlib.sha256).hexdigest()
     def issue(self,bind,attempt_id,payload):
@@ -76,6 +77,17 @@ class ExecutionGateway:
         self.store.issue(CapabilityRecord(token,bind.digest(),attempt_id,payload_digest(payload),self.executor_id))
         return token
     def commit(self,sink,bind,attempt_id,payload,token,proof):
+        # Optional consequence-time standing dependency. When configured, the
+        # protected boundary reads standing itself; callers cannot substitute a
+        # historical result. Exceptions/unknown values fail closed.
+        if self.current_standing_reader is not None:
+            try:
+                from .authority_convergence import ConvergenceResult
+                standing=self.current_standing_reader()
+            except Exception:
+                return "BLOCKED"
+            if standing != ConvergenceResult.ACTIVE:
+                return "BLOCKED"
         if not self.identity_registry.verify(self.executor_id,token,proof): return "BLOCKED"
         if not self.store.consume(token,bind.digest(),attempt_id,payload_digest(payload),self.executor_id): return "BLOCKED"
         sink.append((attempt_id,payload))
