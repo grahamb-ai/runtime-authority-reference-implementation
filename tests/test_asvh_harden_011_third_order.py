@@ -1,13 +1,14 @@
 """HARDEN-011 third-order verification after structural remediation."""
 import os, shutil, tempfile, hashlib
 from pathlib import Path
+from asvh.authority_convergence import ConvergenceResult
 from asvh.execution_authority import SQLiteExecutionAuthorityStore, SQLiteConsumptionAnchor, ExecutionGateway, ExecutorIdentityRegistry
 from tests.test_asvh_harden_011_execution_route_attack import valid_bind
 
 def setup(path, anchor_path, executor="epr-writer-A", secret="executor-secret", registry=None):
     anchor=SQLiteConsumptionAnchor(anchor_path)
     registry=registry or ExecutorIdentityRegistry({"epr-writer-A":"executor-secret"})
-    return ExecutionGateway(SQLiteExecutionAuthorityStore(path,anchor),executor,secret,registry)
+    return ExecutionGateway(SQLiteExecutionAuthorityStore(path,anchor),executor,secret,registry,current_standing_reader=lambda:ConvergenceResult.ACTIVE)
 
 def test_h11_to01_storage_snapshot_rollback_must_not_resurrect_consumed_capability():
     with tempfile.TemporaryDirectory() as d:
