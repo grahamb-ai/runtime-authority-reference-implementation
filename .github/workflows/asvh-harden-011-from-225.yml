@@ -113,3 +113,5 @@ jobs:
 # AIRP-009 remediation verification trigger
 
 # verification rerun after fixture alignment
+
+# AIRP-006 fixture alignment verification
