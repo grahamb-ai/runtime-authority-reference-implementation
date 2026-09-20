@@ -14,7 +14,9 @@ Do not try to prove that FlowSignal solves AiRP.
 
 Demonstrate one narrow proposition:
 
-**When a consequential AI-assisted action depends on authority that can change between earlier approval and execution, FlowSignal can re-evaluate present standing at the modeled pre-consequence boundary and retain evidence of the resulting determination.**
+**When a consequential AI-assisted action depends on authority that can change between earlier approval and execution, the FlowSignal reference model can require and enforce present standing at the modeled pre-consequence boundary.**
+
+Repository artefacts and CI retain engineering provenance of the observed results. This is not a claim that the AIRP executable cases themselves produce a durable production authority receipt.
 
 Then show exactly where the current evidence stops and invite ORCHA to determine whether that control is relevant to any actual AiRP feature block / activated risk.
 
@@ -44,11 +46,11 @@ Explain:
 - NOW — whether the relevant authority still holds;
 - MATCH — whether the action about to occur matches what was authorised.
 
-Locate the check immediately before the represented clinical-record commit.
+Locate the check at the modeled pre-consequence boundary for the represented clinical-record commit.
 
 Say explicitly that the current demonstration is a reference-model boundary, not a claim of universal production-EPR non-bypassability.
 
-### 03:00–06:00 — Run AIRP-002
+### 03:00–05:00 — AIRP-002: establish the state-change proposition
 
 Use the executable worked case in:
 
@@ -72,7 +74,17 @@ Scenario:
 
 The key demonstration point is not simply that a rule returned PREVENTED. It is that the earlier legitimate state is retained as historical evidence but is not substituted for present standing.
 
-### 06:00–07:30 — Show the comparator
+### 05:00–08:30 — Show the strengthened execution evidence
+
+Use AIRP-006, AIRP-008 and AIRP-009 as the execution evidence sequence:
+
+- **AIRP-006:** composition plus reachable-sink positive control; final aligned run 35500425335 recorded **2 passed**.
+- **AIRP-008:** direct protected-boundary invocation exposed the first enforcement gap; failure was preserved, the gateway was strengthened to obtain current standing itself, and the final run recorded **1 passed**.
+- **AIRP-009:** challenged whether current standing was mandatory and exact-typed. The first run exposed permissive string equality and legacy no-reader behavior; both failures were preserved. After remediation and fixture alignment, final run 35500425335 recorded **7 passed**.
+
+Do not present AIRP-006 alone as protected-boundary enforcement. Its original orchestration weakness is part of the evidence history that led to AIRP-008.
+
+### 08:30–09:30 — Show the comparator
 
 Explain what happens if only the earlier observation is retained.
 
@@ -88,24 +100,27 @@ Say:
 
 **“Without consequence-time revalidation, the earlier observation alone does not establish present standing.”**
 
-### 07:30–09:00 — Show the evidence
+### 09:30–11:00 — Show the evidence
 
 Open:
 
 - `docs/ASVH-AIRP-002-EXECUTION-RESULT.md`
 - `docs/ASVH-AIRP-003-EVIDENCE-GAP-MATRIX.md`
 
-Show that GitHub Actions run **35496406525** recorded:
+Show the final reference verification, GitHub Actions run **35500425335**:
 - baseline verification — PASS;
 - H11 third-order durable boundary — PASS;
 - AIRP-002 — PASS;
-- H11 fourth-order trust boundary — FAIL / deliberately preserved RED.
+- AIRP-006 — 2/2 PASS;
+- AIRP-008 — 1/1 PASS;
+- AIRP-009 — 7/7 PASS;
+- H11 fourth-order trust boundary — FAIL / deliberately preserved external-boundary RED.
 
 Explain that the workflow-level FAILURE is intentional evidence: the fourth-order tests identify properties the self-contained reference model cannot legitimately prove.
 
 Do not bury or apologise for the RED result.
 
-### 09:00–11:00 — Show where FlowSignal stops
+### 11:00–12:30 — Show where FlowSignal stops
 
 Put the four unresolved properties on screen:
 
@@ -120,7 +135,7 @@ State:
 
 This is the transition from laboratory evidence to the need for an actual integration boundary.
 
-### 11:00–13:00 — Connect to AiRP
+### 12:30–14:00 — Connect to AiRP
 
 Open:
 
@@ -132,7 +147,7 @@ Then state the hypothesis, without strengthening it:
 
 Explain that the public-framework work deliberately does not infer ORCHA's proprietary questionnaire, risk-activation logic or scoring.
 
-### 13:00–15:00 — Hand the question to ORCHA
+### 14:00–15:00 — Hand the question to ORCHA
 
 The preferred closing question is:
 
@@ -151,10 +166,11 @@ Then use the six beta falsification questions:
 
 Keep the demonstration deliberately small:
 
-1. AIRP-002 executable test/result;
-2. AIRP-003 one-page evidence/gap matrix;
+1. AIRP-010 cycle closure;
+2. AIRP-003 evidence/gap matrix;
 3. AIRP-001 pre-beta mapping;
-4. the CI run showing AIRP-002 green and fourth-order RED.
+4. final CI run 35500425335;
+5. AIRP-002/006/008/009 only as needed to walk the evidence progression.
 
 Do not lead with the complete architecture, 246 checks, repository history or every hostile verification result. Those are supporting evidence if challenged.
 
