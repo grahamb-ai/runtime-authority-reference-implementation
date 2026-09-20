@@ -1,0 +1,21 @@
+name: ASVH HARDEN-011 Execution Route Closure
+
+on:
+  push:
+    branches:
+      - asvh-harden-011-execution-route-closure
+  workflow_dispatch:
+
+jobs:
+  failure-first-route-closure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Run HARDEN-010 regression
+        run: pytest -q tests/test_asvh_harden_010*.py
+      - name: Run HARDEN-011 execution route closure probes
+        run: pytest -q tests/test_asvh_harden_011_execution_route_attack.py
