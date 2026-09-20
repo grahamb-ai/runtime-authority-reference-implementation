@@ -37,14 +37,14 @@ The reference implementation does not assess transcription accuracy, hallucinati
 
 ## 4. Pre-beta mapping
 
-| AiRP stage | FlowSignal contribution | Evidence position | Classification |
-|---|---|---|---|
-| Clinical Context | Identifies the protected consequence and runtime actors/target | Represented clinical-record commit is explicit in the harness | PARTIALLY SUPPORTED |
-| Computational Function | Does not assess the AI's computational function; consumes a proposed consequential action | Function is context for the authority check, not evaluated by FlowSignal | OUT OF SCOPE |
-| Inference Technique / Model Architecture | No model/inference assurance | No evidence claim | OUT OF SCOPE |
-| Risk Activation | FlowSignal does not reproduce AiRP's proprietary activation logic | Runtime conditions may correspond to risks identified elsewhere, but FlowSignal does not decide which AiRP risks activate | OUT OF SCOPE |
-| Structural & Governance Mitigations | Independent runtime authority checks, exact action/executor binding, current-standing validation, route-closure controls and retained evidence can operate as structural controls for applicable execution-time risks | HARDEN-010 + HARDEN-011 evidence chain | SUPPORTED WITH BOUNDARY |
-| Gap Analysis / Residual Risk | Preserved failures and NOT DEMONSTRATED properties can expose remaining execution-boundary gaps | Fourth-order boundary explicitly preserves four unresolved external properties | PARTIALLY SUPPORTED |
+| AiRP stage | FlowSignal contribution | Evidence position | FlowSignal evidence status | AiRP relevance status |
+|---|---|---|---|---|
+| Clinical Context | Identifies the represented consequence and runtime actors/target | Clinical-record commit is explicit in the harness | PARTIALLY SUPPORTED | UNTESTED PENDING ACTUAL AiRP |
+| Computational Function | Does not assess the AI's computational function; consumes a proposed consequential action | Function is context, not evaluated by FlowSignal | OUT OF SCOPE | UNTESTED PENDING ACTUAL AiRP |
+| Inference Technique / Model Architecture | No model/inference assurance | No evidence claim | OUT OF SCOPE | UNTESTED PENDING ACTUAL AiRP |
+| Risk Activation | Does not reproduce AiRP's proprietary activation logic | FlowSignal does not decide which AiRP risks activate | OUT OF SCOPE | UNTESTED PENDING ACTUAL AiRP |
+| Structural & Governance Mitigations | Runtime standing, action/executor binding and represented route controls | HARDEN-010/HARDEN-011 plus AIRP-006/008/009 | SUPPORTED WITH BOUNDARY | UNTESTED PENDING ACTUAL AiRP |
+| Gap Analysis / Residual Risk | Preserved failures expose remaining execution-boundary gaps | Fourth-order external-boundary findings remain visible | PARTIALLY SUPPORTED | UNTESTED PENDING ACTUAL AiRP |
 
 ## 5. Runtime control evidence relevant to mitigation analysis
 
