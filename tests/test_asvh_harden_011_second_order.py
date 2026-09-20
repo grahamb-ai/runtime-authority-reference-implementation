@@ -1,11 +1,12 @@
 """HARDEN-011 second-order verification — unchanged propositions, remediated boundary."""
 import tempfile, threading
 from pathlib import Path
+from asvh.authority_convergence import ConvergenceResult
 from asvh.execution_authority import SQLiteExecutionAuthorityStore, ExecutionGateway
 from tests.test_asvh_harden_011_execution_route_attack import valid_bind
 
 def setup(path,executor="epr-writer-A",secret="executor-secret"):
-    return ExecutionGateway(SQLiteExecutionAuthorityStore(path),executor,secret)
+    return ExecutionGateway(SQLiteExecutionAuthorityStore(path),executor,secret,current_standing_reader=lambda:ConvergenceResult.ACTIVE)
 
 def test_h11_so01_capability_for_attempt_a_cannot_authorise_attempt_b():
     with tempfile.TemporaryDirectory() as d:
