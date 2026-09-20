@@ -57,4 +57,17 @@ jobs:
           python-version: "3.13"
       - run: pip install -r requirements.txt
       - name: Attack H11 fourth-order trust boundary
+        # Fourth-order RED is intentionally preserved as the external-boundary finding.
         run: pytest -q tests/test_asvh_harden_011_fourth_order.py
+
+  airp-002-worked-case:
+    needs: third-order-durable-boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - name: Execute AIRP-002 worked evidence case
+        run: pytest -q tests/test_asvh_airp_002_worked_case.py
