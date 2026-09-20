@@ -77,17 +77,19 @@ class ExecutionGateway:
         self.store.issue(CapabilityRecord(token,bind.digest(),attempt_id,payload_digest(payload),self.executor_id))
         return token
     def commit(self,sink,bind,attempt_id,payload,token,proof):
-        # Optional consequence-time standing dependency. When configured, the
-        # protected boundary reads standing itself; callers cannot substitute a
-        # historical result. Exceptions/unknown values fail closed.
-        if self.current_standing_reader is not None:
-            try:
-                from .authority_convergence import ConvergenceResult
-                standing=self.current_standing_reader()
-            except Exception:
-                return "BLOCKED"
-            if standing != ConvergenceResult.ACTIVE:
-                return "BLOCKED"
+        # Consequence-time standing is mandatory at the protected commit path.
+        # Legacy construction may omit the reader, but omission fails closed.
+        if self.current_standing_reader is None:
+            return "BLOCKED"
+        try:
+            from .authority_convergence import ConvergenceResult
+            standing=self.current_standing_reader()
+        except Exception:
+            return "BLOCKED"
+        # Require the exact enum type as well as ACTIVE value. ConvergenceResult
+        # subclasses str, so equality alone would also accept the plain string.
+        if type(standing) is not ConvergenceResult or standing is not ConvergenceResult.ACTIVE:
+            return "BLOCKED"
         if not self.identity_registry.verify(self.executor_id,token,proof): return "BLOCKED"
         if not self.store.consume(token,bind.digest(),attempt_id,payload_digest(payload),self.executor_id): return "BLOCKED"
         sink.append((attempt_id,payload))
