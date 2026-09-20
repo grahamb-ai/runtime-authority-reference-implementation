@@ -14,7 +14,7 @@ Do not try to prove that FlowSignal solves AiRP.
 
 Demonstrate one narrow proposition:
 
-**When a consequential AI-assisted action depends on authority that can change between earlier approval and execution, FlowSignal can re-evaluate present standing immediately before the represented consequence and retain evidence of the resulting determination.**
+**When a consequential AI-assisted action depends on authority that can change between earlier approval and execution, FlowSignal can re-evaluate present standing at the modeled pre-consequence boundary and retain evidence of the resulting determination.**
 
 Then show exactly where the current evidence stops and invite ORCHA to determine whether that control is relevant to any actual AiRP feature block / activated risk.
 
@@ -128,7 +128,7 @@ Open:
 
 Then state the hypothesis, without strengthening it:
 
-**For a subset of AI Risk Profiler feature blocks where a consequential action depends on authority that can change between approval and execution, FlowSignal may provide an independently testable runtime control and evidence mechanism relevant to the mitigation stage, with resulting evidence potentially informing residual-risk/gap analysis.**
+**For a subset of AI Risk Profiler feature blocks where a consequential action depends on authority that can change between approval and execution, FlowSignal may provide an externally reproducible/testable-in-principle runtime control and evidence mechanism relevant to the mitigation stage, with resulting evidence potentially informing residual-risk/gap analysis.**
 
 Explain that the public-framework work deliberately does not infer ORCHA's proprietary questionnaire, risk-activation logic or scoring.
 
@@ -136,7 +136,7 @@ Explain that the public-framework work deliberately does not infer ORCHA's propr
 
 The preferred closing question is:
 
-**“Does the actual AiRP recognise this kind of consequence-time runtime control as a mitigation for any of the risks it activates in this feature — and, if it does, what evidence would AiRP require from us?”**
+**“How would AiRP decompose or classify this ambient-scribing capability into AI feature(s)? For any risk AiRP then activates, does it recognise this kind of consequence-time runtime control as a mitigation — and, if it does, what evidence would AiRP require from us?”**
 
 Then use the six beta falsification questions:
 
@@ -160,7 +160,7 @@ Do not lead with the complete architecture, 246 checks, repository history or ev
 
 ## 4. Evidence available if challenged
 
-If ORCHA asks how deep the testing goes, explain that the reference-model verification chain reached **246 passing checks** before the deliberate fourth-order external-boundary probes.
+If ORCHA asks how deep the testing goes, explain that the reference-model verification chain reached **246 underlying ASVH reference-model verification checks (not 246 AiRP checks)** before the deliberate fourth-order external-boundary probes.
 
 Relevant tested themes include:
 - present authority standing;
