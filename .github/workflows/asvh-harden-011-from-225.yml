@@ -25,5 +25,8 @@ jobs:
       - name: Execute frozen HARDEN-011 route closure probes
         if: success()
         run: pytest -q tests/test_asvh_harden_011_execution_route_attack.py
+      - name: Attack HARDEN-011 remediation second order
+        if: success()
+        run: pytest -q tests/test_asvh_harden_011_second_order.py
 
 # remediation verification trigger
