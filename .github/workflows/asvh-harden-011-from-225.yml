@@ -111,3 +111,5 @@ jobs:
         run: pytest -q tests/test_asvh_airp_009_standing_dependency.py
 
 # AIRP-009 remediation verification trigger
+
+# verification rerun after fixture alignment
