@@ -7,11 +7,13 @@
 
 ## 1. Purpose
 
-Test the frozen hypothesis that, for a subset of AI Risk Profiler feature blocks where a consequential action depends on authority that can change between approval and execution, FlowSignal may provide an independently testable runtime control and evidence mechanism relevant to the mitigation stage, with resulting evidence potentially informing residual-risk/gap analysis.
+Test the frozen hypothesis that, for a subset of AI Risk Profiler feature blocks where a consequential action depends on authority that can change between approval and execution, FlowSignal may provide an externally reproducible/testable-in-principle runtime control and evidence mechanism relevant to the mitigation stage, with resulting evidence potentially informing residual-risk/gap analysis.
 
 This document does not reproduce or infer ORCHA's proprietary questionnaire, taxonomy, scoring or risk-activation logic.
 
 ## 2. Public AiRP framework used
+
+External provenance is frozen in `ASVH-AIRP-SOURCE-FREEZE-001.md` (public ORCHA pages accessed 2026-09-20).
 
 ORCHA publicly describes six stages:
 1. Clinical Context / Clinical Risk Severity
@@ -29,7 +31,7 @@ ORCHA also states that each AI feature is assessed separately, that structural a
 
 **Represented consequence:** clinical-record commit.
 
-**FlowSignal boundary:** immediately before represented consequence formation, after the proposed action and relevant runtime context are known.
+**FlowSignal boundary:** at the modeled pre-consequence boundary, after the proposed action and relevant runtime context are known.
 
 The reference implementation does not assess transcription accuracy, hallucination, bias, model quality, clinical efficacy, model drift, medical-device classification, or general product assurance.
 
@@ -57,7 +59,7 @@ For the represented clinical-record commit, the reference implementation has evi
 - fail-closed behavior for several missing/mismatched authority conditions;
 - retained evidence and replay/reconstruction properties already covered by the verification chain.
 
-The complete H11 verification chain reached 246 passing checks before the fourth-order boundary probes.
+The underlying ASVH reference-model verification chain reached 246 passing checks before the fourth-order boundary probes. These are not 246 AiRP checks.
 
 ## 6. Preserved residual gaps
 
@@ -72,9 +74,9 @@ These are not converted to PASS by further local simulation.
 
 ## 7. AiRP hypothesis result at this stage
 
-**SUPPORTED IN PART, NOT YET VALIDATED BY ORCHA.**
+**TECHNICAL EVIDENCE SUPPORTED IN PART; AiRP RELEVANCE UNTESTED PENDING ACTUAL ORCHA/AiRP REVIEW.**
 
-The evidence supports a narrower proposition: FlowSignal can provide testable runtime structural-control evidence for some authority-dependent execution risks at a represented clinical-record commit boundary. The evidence may be relevant to AiRP's mitigation and residual-gap stages.
+The evidence supports a narrower proposition: FlowSignal has testable runtime structural-control evidence for some authority-dependent execution properties at a represented clinical-record commit boundary. Whether that evidence is relevant to any AiRP-activated risk or mitigation remains untested pending actual ORCHA/AiRP review.
 
 The evidence does **not** establish:
 - coverage of all ten AiRP standard risks;
