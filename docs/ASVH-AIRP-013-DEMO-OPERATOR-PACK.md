@@ -56,6 +56,35 @@ Actions run **35500425335**
 **TAB 9 — Detailed operator fallback**  
 `docs/ASVH-AIRP-012-POINT-AND-CLICK-DEMO-RUNBOOK.md`
 
+## 2A. Direct navigation card
+
+Use these branch-pinned links. If a link opens a different branch, stop and correct it before presenting.
+
+- Repository branch: https://github.com/grahamb-ai/runtime-authority-reference-implementation/tree/asvh-harden-011-from-225-baseline
+- AIRP-010 closure: https://github.com/grahamb-ai/runtime-authority-reference-implementation/blob/asvh-harden-011-from-225-baseline/docs/ASVH-AIRP-010-ENGINEERING-CYCLE-CLOSURE.md
+- AIRP-003 matrix: https://github.com/grahamb-ai/runtime-authority-reference-implementation/blob/asvh-harden-011-from-225-baseline/docs/ASVH-AIRP-003-EVIDENCE-GAP-MATRIX.md
+- AIRP-002 test: https://github.com/grahamb-ai/runtime-authority-reference-implementation/blob/asvh-harden-011-from-225-baseline/tests/test_asvh_airp_002_worked_case.py
+- AIRP-006 test: https://github.com/grahamb-ai/runtime-authority-reference-implementation/blob/asvh-harden-011-from-225-baseline/tests/test_asvh_airp_006_composition.py
+- AIRP-008 test: https://github.com/grahamb-ai/runtime-authority-reference-implementation/blob/asvh-harden-011-from-225-baseline/tests/test_asvh_airp_008_direct_enforcement.py
+- AIRP-009 test: https://github.com/grahamb-ai/runtime-authority-reference-implementation/blob/asvh-harden-011-from-225-baseline/tests/test_asvh_airp_009_standing_dependency.py
+- Reference Actions run: https://github.com/grahamb-ai/runtime-authority-reference-implementation/actions/runs/35500425335
+- AIRP-001 mapping: https://github.com/grahamb-ai/runtime-authority-reference-implementation/blob/asvh-harden-011-from-225-baseline/docs/ASVH-AIRP-001-PRE-BETA-EVIDENCE-MAPPING.md
+- AIRP-012 detailed runbook: https://github.com/grahamb-ai/runtime-authority-reference-implementation/blob/asvh-harden-011-from-225-baseline/docs/ASVH-AIRP-012-POINT-AND-CLICK-DEMO-RUNBOOK.md
+
+### Stable visual anchors
+
+Before speaking, make sure the following is visible:
+
+- AIRP-010: heading **Final observed verification state**.
+- AIRP-002: the T0/T1 assertions in the executable test.
+- AIRP-006: test names for changed-standing prevention and ACTIVE positive control.
+- AIRP-008: the direct-enforcement test function.
+- AIRP-009: the parameterised invalid-standing cases and ACTIVE positive control.
+- Actions: the job list containing AIRP-006, AIRP-008, AIRP-009 and fourth-order-trust-boundary.
+- AIRP-001: section **Pre-beta mapping** with separate evidence/relevance columns.
+
+Screenshots are not evidential artefacts: GitHub UI layout can change. These branch-pinned paths, headings, job names and run ID are the stable navigation cues.
+
 ## 3. Visual orientation
 
 Use the repository headings and test names as the visual anchors. Do not scroll rapidly through implementation code.
