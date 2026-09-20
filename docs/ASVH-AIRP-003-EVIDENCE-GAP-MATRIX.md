@@ -31,6 +31,20 @@ The matrix asks a narrow question:
 | AiRP risk activation | FlowSignal can consume runtime context but does not determine ORCHA's proprietary AiRP risk activation | No official AiRP questionnaire available | OUT OF SCOPE | UNTESTED PENDING ACTUAL AiRP | Requires actual AiRP beta/test access |
 | Model quality, hallucination, bias, clinical efficacy, model drift | No FlowSignal assurance claim | Explicit scope boundary | OUT OF SCOPE | UNTESTED PENDING ACTUAL AiRP | Must be addressed by other assurance controls/framework elements |
 
+## Final AIRP execution evidence
+
+The final reference verification is GitHub Actions run **35500425335**. It records:
+
+- baseline verification — PASS;
+- H11 third-order durable boundary — PASS;
+- AIRP-002 state-change case — PASS;
+- AIRP-006 composition challenge — **2/2 PASS**;
+- AIRP-008 direct protected-boundary enforcement — **1/1 PASS AFTER REMEDIATION**;
+- AIRP-009 mandatory/exact-typed standing dependency — **7/7 PASS AFTER REMEDIATION**;
+- H11 fourth-order trust boundary — FAIL / deliberately preserved external-boundary finding.
+
+The progression matters. AIRP-006 does not replace AIRP-002; AIRP-008 was created because AIRP-006 still depended on cooperative orchestration; AIRP-009 then challenged whether AIRP-008's standing dependency was structurally mandatory and exact-typed. The first failures for AIRP-008 and AIRP-009 remain preserved in the evidence directory.
+
 ## Executable AIRP-002 result
 
 GitHub Actions run **35496406525**:
