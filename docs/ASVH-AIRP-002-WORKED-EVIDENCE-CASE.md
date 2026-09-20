@@ -10,11 +10,11 @@ Can an earlier legitimate documentation state remain sufficient when a relevant 
 
 ## Scenario
 
-At **T0**, a synthetic ambient-scribing workflow is legitimately initiated while the modeled consent/authority dependency is VALID at revision 1.
+At **T0**, a synthetic ambient-scribing workflow is legitimately initiated while the synthetic guidance-derived runtime condition is VALID at revision 1.
 
-Before the represented EPR commit, the authoritative dependency changes.
+Before the represented EPR commit, the synthetic modeled runtime condition changes.
 
-At **T1**, the same dependency is WITHDRAWN at revision 2.
+At **T1**, the same synthetic modeled condition is WITHDRAWN at revision 2.
 
 The test deliberately preserves the earlier legitimate state. The proposition is that historical validity must not substitute for present standing at the consequence boundary.
 
@@ -31,6 +31,10 @@ Expected observations:
 3. No consequence bind is returned for the prevented T1 state.
 4. The represented clinical-record commit list remains empty.
 5. The comparator demonstrates only that an earlier VALID observation is historical evidence; it does **not** claim what a real EPR would do without FlowSignal.
+
+## Clinical semantics boundary
+
+The modeled condition is synthetic. It is not asserted to be a universal NHS consent rule, legal-authority rule, or direct statement of clinical law/policy.
 
 ## AiRP interpretation
 
