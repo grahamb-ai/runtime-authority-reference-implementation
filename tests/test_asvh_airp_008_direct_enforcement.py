@@ -16,20 +16,25 @@ def condition(status,revision):
         subject_id="synthetic-encounter-001",
         revision=revision,status=status,age_seconds=0,required=True),))
 
-def gateway(directory):
+def gateway(directory,current_standing_reader=None):
     root=Path(directory)
     registry=ExecutorIdentityRegistry({"epr-writer-A":"executor-secret"})
     anchor=SQLiteConsumptionAnchor(root/"anchor.db")
     store=SQLiteExecutionAuthorityStore(root/"state.db",anchor)
-    return ExecutionGateway(store,"epr-writer-A","executor-secret",registry)
+    return ExecutionGateway(store,"epr-writer-A","executor-secret",registry,current_standing_reader)
 
 def test_airp_008_prevented_current_standing_must_survive_direct_gateway_call():
     t0,_=consequence_time_converge(lambda:condition("VALID",1))
     assert t0==ConvergenceResult.ACTIVE
     with tempfile.TemporaryDirectory() as d:
-        g=gateway(d); b=valid_bind("attempt-A")
+        standing={"status":"VALID","revision":1}
+        def read_standing():
+            result,_=consequence_time_converge(lambda:condition(standing["status"],standing["revision"]))
+            return result
+        g=gateway(d,read_standing); b=valid_bind("attempt-A")
         token=g.issue(b,"attempt-A","synthetic-clinical-note")
         proof=g.executor_proof(token)
+        standing["status"]="WITHDRAWN"; standing["revision"]=2
         t1,_=consequence_time_converge(lambda:condition("WITHDRAWN",2))
         assert t1==ConvergenceResult.PREVENTED
         sink=[]
