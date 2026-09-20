@@ -1,0 +1,27 @@
+name: ASVH 225 Baseline and HARDEN-011
+
+on:
+  push:
+    branches: [asvh-harden-011-from-225-baseline]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - name: Reproduce frozen 225 positive baseline
+        run: >
+          pytest -q
+          tests/test_asvh_harden_00[1-9].py
+          tests/test_asvh_harden_00[1-9]_hostile.py
+          tests/test_asvh_harden_010_final_bind_remediation.py
+          tests/test_asvh_harden_010_attempt_binding_attack.py
+          tests/test_asvh_harden_010_whole_chain_hostile.py
+      - name: Execute frozen HARDEN-011 route closure probes
+        if: success()
+        run: pytest -q tests/test_asvh_harden_011_execution_route_attack.py
