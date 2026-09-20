@@ -34,12 +34,12 @@ def _condition(status: str, revision: int) -> DependencyBasis:
     ))
 
 
-def _gateway(directory: str):
+def _gateway(directory: str, current_standing_reader):
     root=Path(directory)
     registry=ExecutorIdentityRegistry({"epr-writer-A":"executor-secret"})
     anchor=SQLiteConsumptionAnchor(root/"anchor.db")
     store=SQLiteExecutionAuthorityStore(root/"state.db",anchor)
-    return ExecutionGateway(store,"epr-writer-A","executor-secret",registry)
+    return ExecutionGateway(store,"epr-writer-A","executor-secret",registry,current_standing_reader=current_standing_reader)
 
 
 def test_airp_006_state_change_cannot_reach_existing_protected_sink():
@@ -50,13 +50,18 @@ def test_airp_006_state_change_cannot_reach_existing_protected_sink():
     # Existing H11 machinery can issue an execution capability for the exact
     # represented attempt/payload. We deliberately do not modify H11 for AiRP.
     with tempfile.TemporaryDirectory() as d:
-        gateway=_gateway(d)
+        standing={"status":"VALID","revision":1}
+        def read_standing():
+            result,_=consequence_time_converge(lambda:_condition(standing["status"],standing["revision"]))
+            return result
+        gateway=_gateway(d,read_standing)
         bind=valid_bind("attempt-A")
         token=gateway.issue(bind,"attempt-A","synthetic-clinical-note")
         proof=gateway.executor_proof(token)
         sink=[]
 
         # T1: revalidation immediately at the modeled pre-consequence boundary.
+        standing["status"]="WITHDRAWN"; standing["revision"]=2
         t1_result,t1_bind=consequence_time_converge(lambda:_condition("WITHDRAWN",2))
 
         # Composition rule under challenge: protected execution is invoked only
@@ -79,7 +84,7 @@ def test_airp_006_control_proves_h11_sink_was_reachable_when_current_standing_ac
     # can form exactly one represented commit. This prevents a vacuous blocked
     # result caused by an unreachable/broken sink.
     with tempfile.TemporaryDirectory() as d:
-        gateway=_gateway(d)
+        gateway=_gateway(d,lambda:ConvergenceResult.ACTIVE)
         bind=valid_bind("attempt-A")
         token=gateway.issue(bind,"attempt-A","synthetic-clinical-note")
         proof=gateway.executor_proof(token)
