@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FlowSignal Ambient Scribing Runtime Demo</title><link rel="stylesheet" href="ambient-scribing.css"></head>
+<body>
+<header><div class="mark">✦</div><div><b>FlowSignal</b><span> Ambient Scribing Runtime Authority</span></div><div class="tag">REFERENCE MODEL</div></header>
+<main>
+<section class="hero"><p class="eyebrow">B4 ACT · WHO → WHAT → NOW → MATCH</p><h1>Earlier approval is not present authority.</h1><p>Interactive visualisation of the executable ASVH/AIRP reference-model scenarios. Synthetic clinical data only.</p></section>
+<section class="scenario-bar">
+<button data-s="allow" class="active">1 · Current standing ACTIVE</button>
+<button data-s="withdrawn">2 · Standing withdrawn</button>
+<button data-s="stale">3 · Earlier capability</button>
+<button data-s="dependency">4 · Standing dependency</button>
+</section>
+<section class="layout">
+<div class="panel">
+<div class="timeline">
+<div class="node"><small>T0</small><strong>Consultation</strong><span id="t0">VALID · rev 1</span></div><div class="arrow">→</div>
+<div class="node"><small>AI SCRIBE</small><strong>Clinical note</strong><span>synthetic-clinical-note</span></div><div class="arrow">→</div>
+<div class="node flow"><small>B4 ACT</small><strong>FlowSignal</strong><span id="standing">ACTIVE</span></div><div class="arrow">→</div>
+<div class="node epr" id="epr"><small>CONSEQUENCE</small><strong>EPR Commit</strong><span id="eprState">waiting</span></div>
+</div>
+<div class="cards">
+<div><small>WHO</small><b>epr-writer-A</b><span>executor identity</span></div>
+<div><small>WHAT</small><b>clinical-note commit</b><span>exact represented action</span></div>
+<div><small>NOW</small><b id="nowCard">ACTIVE</b><span>current standing</span></div>
+<div><small>MATCH</small><b>attempt-A</b><span>attempt + payload bound</span></div>
+</div>
+<div id="controls" class="controls"></div>
+<button id="execute" class="execute">Attempt represented EPR commit →</button>
+<div id="result" class="result neutral"><strong>READY</strong><span>Select a scenario and run the represented commit.</span></div>
+</div>
+<aside class="panel evidence">
+<p class="eyebrow">Evidence trace</p><h2 id="scenarioTitle">Current standing ACTIVE</h2>
+<p id="scenarioText"></p>
+<div class="trace" id="trace"></div>
+<div class="boundary"><b>REFERENCE MODEL ENDS HERE</b><span>Production standing-source authenticity/freshness · independently administered identity/key trust · actual EPR route closure · physical consequence confirmation</span><strong>NOT DEMONSTRATED</strong></div>
+</aside>
+</section>
+<section class="history panel"><div><p class="eyebrow">Preserved engineering history</p><h2>A green result was not assumed to be enough.</h2></div>
+<div class="history-grid">
+<article><b>AIRP-006</b><strong>2 / 2 PASS</strong><span>Composition + reachable-sink positive control.</span></article>
+<article><b>AIRP-008</b><strong>PASS AFTER REMEDIATION</strong><span>First run preserved: stale T0 capability returned COMMITTED after T1 PREVENTED.</span></article>
+<article><b>AIRP-009</b><strong>7 / 7 PASS AFTER REMEDIATION</strong><span>First run preserved: 2 failed, 5 passed. Weak ACTIVE representation and omitted reader exposed.</span></article>
+<article class="red"><b>Fourth order</b><strong>RED PRESERVED</strong><span>External trust/EPR properties remain outside this reference model.</span></article>
+</div></section>
+<footer>FlowSignal™ · EXECUTE WITH AUTHORITY. DEFEND WITH EVIDENCE. · Demo outcomes mirror the current executable gateway contract; this UI is not production EPR evidence.</footer>
+</main><script src="ambient-scribing.js"></script></body></html>
