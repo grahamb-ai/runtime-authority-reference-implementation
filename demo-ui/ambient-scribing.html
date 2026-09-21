@@ -11,7 +11,7 @@ No Python/npm/server is required for this static visual companion.
 <body>
 <header><div class="mark">✦</div><div><b>FlowSignal</b><span> Ambient Scribing Runtime Authority</span></div><div class="tag">REFERENCE MODEL</div></header>
 <main>
-<section class="hero"><p class="eyebrow">B4 ACT · WHO → WHAT → NOW → MATCH</p><h1>Earlier approval is not present authority.</h1><p>Interactive visualisation of the executable ASVH/AIRP reference-model scenarios. Synthetic clinical data only.</p></section>
+<section class="hero"><p class="eyebrow">B4 ACT · WHO → WHAT → NOW → MATCH</p><h1>The note was authorised earlier. Is it still authorised now?</h1><p>FlowSignal checks again immediately before the represented EPR commit. Interactive ASVH/AIRP reference-model visualisation using synthetic clinical data.</p></section>
 <section class="scenario-bar">
 <button data-s="allow" class="active">1 · Current standing ACTIVE</button>
 <button data-s="withdrawn">2 · Standing withdrawn</button>
@@ -23,7 +23,7 @@ No Python/npm/server is required for this static visual companion.
 <div class="timeline">
 <div class="node"><small>T0</small><strong>Consultation</strong><span id="t0">VALID · rev 1</span></div><div class="arrow">→</div>
 <div class="node"><small>AI SCRIBE</small><strong>Clinical note</strong><span>synthetic-clinical-note</span></div><div class="arrow">→</div>
-<div class="node flow"><small>B4 ACT</small><strong>FlowSignal</strong><span id="standing">ACTIVE</span></div><div class="arrow">→</div>
+<div class="state-change" id="stateChange"><small>STATE CHANGE</small><strong id="changeState">none</strong></div><div class="arrow">→</div><div class="node flow" id="flowNode"><small>T1 · B4 ACT</small><strong>FlowSignal</strong><span id="standing">ACTIVE</span></div><div class="arrow">→</div>
 <div class="node epr" id="epr"><small>CONSEQUENCE</small><strong>EPR Commit</strong><span id="eprState">waiting</span></div>
 </div>
 <div class="cards">
