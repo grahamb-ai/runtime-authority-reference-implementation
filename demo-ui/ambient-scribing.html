@@ -1,54 +1,67 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FlowSignal Ambient Scribing Runtime Demo</title><link rel="stylesheet" href="ambient-scribing.css"></head>
-
-<!--
-EASY LAUNCH
-1. Download the demo-ui folder (or repository ZIP).
-2. Double-click START-DEMO-WINDOWS.cmd.
-No Python/npm/server is required for this static visual companion.
--->
+<title>Ambient Scribing · Runtime Authority Demo</title><link rel="stylesheet" href="ambient-scribing.css"></head>
 <body>
-<header><div class="mark">✦</div><div><b>FlowSignal</b><span> Ambient Scribing Runtime Authority</span></div><div class="tag">REFERENCE MODEL</div></header>
+<header><div><b>Ambient Scribing</b><span>Runtime Authority Demonstrator</span></div><div class="tag">REFERENCE MODEL · SYNTHETIC DATA</div></header>
 <main>
-<section class="hero"><p class="eyebrow">B4 ACT · WHO → WHAT → NOW → MATCH</p><h1>The note was authorised earlier. Is it still authorised now?</h1><p>FlowSignal checks again immediately before the represented EPR commit. Interactive ASVH/AIRP reference-model visualisation using synthetic clinical data.</p></section>
-<section class="scenario-bar">
-<button data-s="allow" class="active">1 · Current standing ACTIVE</button>
-<button data-s="withdrawn">2 · Standing withdrawn</button>
-<button data-s="stale">3 · Earlier capability</button>
-<button data-s="dependency">4 · Standing dependency</button>
+<section class="hero"><p class="eyebrow">THE QUESTION AT THE POINT OF ACTION</p><h1>It was authorised earlier.<br>Is it still authorised now?</h1><p>Compare the same synthetic clinical workflow without and with a consequence-time authority check immediately before the represented EPR commit.</p></section>
+
+<section class="mode-switch" aria-label="Comparison mode">
+<button id="withoutMode">WITHOUT FLOWSIGNAL</button><button id="withMode" class="active">WITH FLOWSIGNAL</button>
 </section>
+
+<section class="scenario-bar">
+<button data-s="unchanged" class="active">1 · Nothing changed</button>
+<button data-s="dissent">2 · Patient dissents</button>
+<button data-s="payload">3 · Approved draft changes</button>
+<button data-s="dependency">4 · Standing cannot be trusted</button>
+</section>
+
 <section class="layout">
-<div class="panel">
+<div class="panel main-panel">
+<div class="story-head"><div><p class="eyebrow">SAME WORKFLOW · ONE CONTROL DIFFERENCE</p><h2 id="scenarioTitle"></h2></div><div class="mode-pill" id="modePill"></div></div>
+<p class="story" id="scenarioText"></p>
+
 <div class="timeline">
-<div class="node"><small>T0</small><strong>Consultation</strong><span id="t0">VALID · rev 1</span></div><div class="arrow">→</div>
-<div class="node"><small>AI SCRIBE</small><strong>Clinical note</strong><span>synthetic-clinical-note</span></div><div class="arrow">→</div>
-<div class="state-change" id="stateChange"><small>STATE CHANGE</small><strong id="changeState">none</strong></div><div class="arrow">→</div><div class="node flow" id="flowNode"><small>T1 · B4 ACT</small><strong>FlowSignal</strong><span id="standing">ACTIVE</span></div><div class="arrow">→</div>
-<div class="node epr" id="epr"><small>CONSEQUENCE</small><strong>EPR Commit</strong><span id="eprState">waiting</span></div>
+<div class="node"><small>T0 · EARLIER STATE</small><strong>Consultation</strong><span id="t0State"></span></div>
+<div class="arrow">→</div>
+<div class="node"><small>AI SCRIBE</small><strong>Clinical note</strong><span id="noteState"></span></div>
+<div class="arrow">→</div>
+<div class="change" id="changeBox"><small>WHAT CHANGED?</small><strong id="changeTitle"></strong><span id="changeDetail"></span></div>
+<div class="arrow">→</div>
+<div class="node gate" id="gateNode"><small id="gateSmall"></small><strong id="gateTitle"></strong><span id="gateState"></span></div>
+<div class="arrow">→</div>
+<div class="node epr" id="epr"><small>REPRESENTED CONSEQUENCE</small><strong>EPR Commit</strong><span id="eprState">waiting</span></div>
 </div>
+
 <div class="cards">
-<div><small>WHO</small><b>epr-writer-A</b><span>executor identity</span></div>
-<div><small>WHAT</small><b>clinical-note commit</b><span>exact represented action</span></div>
-<div><small>NOW</small><b id="nowCard">ACTIVE</b><span>current standing</span></div>
-<div><small>MATCH</small><b>attempt-A</b><span>attempt + payload bound</span></div>
+<div><small>WHO</small><b>epr-writer-A</b><span>represented executor</span></div>
+<div><small>WHAT</small><b>clinical-note.commit</b><span>proposed action</span></div>
+<div><small>NOW</small><b id="nowCard">—</b><span>current standing</span></div>
+<div><small>MATCH</small><b id="matchCard">attempt-A</b><span>attempt + payload</span></div>
 </div>
 <div id="controls" class="controls"></div>
 <button id="execute" class="execute">Attempt represented EPR commit →</button>
-<div id="result" class="result neutral"><strong>READY</strong><span>Select a scenario and run the represented commit.</span></div>
+<div id="result" class="result neutral"><strong>READY</strong><span>Run the same proposed consequence through the selected path.</span></div>
 </div>
+
 <aside class="panel evidence">
-<p class="eyebrow">Evidence trace</p><h2 id="scenarioTitle">Current standing ACTIVE</h2>
-<p id="scenarioText"></p>
-<div class="trace" id="trace"></div>
+<p class="eyebrow">EVIDENCE AVAILABLE AT DECISION TIME</p>
+<h2 id="evidenceTitle">Contemporaneous decision record</h2>
+<p class="evidence-intro">What the selected path could establish when the represented consequence was attempted.</p>
+<div class="receipt" id="receipt"></div>
+<div class="preserve"><b>PRESERVED FOR LATER REVIEW</b><span id="preserveText">Run the represented commit to create the decision record.</span></div>
 <div class="boundary"><b>REFERENCE MODEL ENDS HERE</b><span>Production standing-source authenticity/freshness · independently administered identity/key trust · actual EPR route closure · physical consequence confirmation</span><strong>NOT DEMONSTRATED</strong></div>
 </aside>
 </section>
-<section class="history panel"><div><p class="eyebrow">Preserved engineering history</p><h2>A green result was not assumed to be enough.</h2></div>
+
+<section class="history panel"><div><p class="eyebrow">PRESERVED ENGINEERING HISTORY</p><h2>The reference model was challenged before this visualisation was built.</h2></div>
 <div class="history-grid">
 <article><b>AIRP-006</b><strong>2 / 2 PASS</strong><span>Composition + reachable-sink positive control.</span></article>
-<article><b>AIRP-008</b><strong>PASS AFTER REMEDIATION</strong><span>First run preserved: stale T0 capability returned COMMITTED after T1 PREVENTED.</span></article>
-<article><b>AIRP-009</b><strong>7 / 7 PASS AFTER REMEDIATION</strong><span>First run preserved: 2 failed, 5 passed. Weak ACTIVE representation and omitted reader exposed.</span></article>
-<article class="red"><b>Fourth order</b><strong>RED PRESERVED</strong><span>External trust/EPR properties remain outside this reference model.</span></article>
+<article><b>AIRP-008</b><strong>PASS AFTER REMEDIATION</strong><span>First run preserved: earlier capability committed after current standing became PREVENTED.</span></article>
+<article><b>AIRP-009</b><strong>7 / 7 PASS AFTER REMEDIATION</strong><span>First run preserved: weak ACTIVE representation and omitted standing reader exposed.</span></article>
+<article class="red"><b>Fourth order</b><strong>RED PRESERVED</strong><span>External trust and real EPR properties remain outside this reference model.</span></article>
 </div></section>
-<footer>FlowSignal™ · EXECUTE WITH AUTHORITY. DEFEND WITH EVIDENCE. · Demo outcomes mirror the current executable gateway contract; this UI is not production EPR evidence.</footer>
+
+<footer><strong>EXECUTE WITH AUTHORITY. DEFEND WITH EVIDENCE.</strong><br>Reference-model visualisation only. The WITHOUT path is a synthetic comparator, not a claim about any NHS EPR or ambient-scribing product.</footer>
 </main><script src="ambient-scribing.js"></script></body></html>
