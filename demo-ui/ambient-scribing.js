@@ -13,7 +13,8 @@ function dependencyControls(){
 function render(){
  const s=scenarios[current]; document.querySelector("#scenarioTitle").textContent=s.title;document.querySelector("#scenarioText").textContent=s.text;
  document.querySelector("#standing").textContent=s.standing;document.querySelector("#nowCard").textContent=s.now;
- document.querySelector("#t0").textContent=current==="allow"?"VALID · rev 1":"VALID rev 1 → WITHDRAWN rev 2";
+ document.querySelector("#t0").textContent="VALID · rev 1";
+ const changed=current!=="allow"; document.querySelector("#stateChange").classList.toggle("changed",changed); document.querySelector("#changeState").textContent=changed?"WITHDRAWN · rev 2":"none";
  document.querySelector("#eprState").textContent="waiting";document.querySelector("#epr").classList.remove("committed","blocked");
  document.querySelector("#result").className="result neutral";document.querySelector("#result").innerHTML="<strong>READY</strong><span>Attempt the represented commit.</span>";
  controls.innerHTML=current==="dependency"?"":'<span class="hint">'+(current==="stale"?"T0 capability retained · direct protected-gateway invocation":"Current standing is read at consequence time")+"</span>";
@@ -25,10 +26,10 @@ function outcome(){
  if(current==="dependency")r=document.querySelector("#reader").value;
  const committed=r==="ACTIVE";
  const reason=committed?"Exact typed current standing ACTIVE; represented protected path accepted.":r==="PREVENTED"?"Current standing PREVENTED; protected path failed closed.":r==="STRING"?"Plain string ACTIVE rejected; exact enum type required.":r==="MISSING"?"Standing reader absent; protected path failed closed.":r==="ERROR"?"Standing reader exception; protected path failed closed.":"Current standing cannot be established as exact typed ACTIVE; protected path failed closed.";
- document.querySelector("#eprState").textContent=committed?"COMMITTED":"UNCHANGED";
+ document.querySelector("#eprState").textContent=committed?"COMMITTED":"NOT COMMITTED";
  document.querySelector("#epr").classList.add(committed?"committed":"blocked");
  document.querySelector("#result").className="result "+(committed?"ok":"stop");
- document.querySelector("#result").innerHTML="<strong>"+(committed?"COMMITTED":"BLOCKED")+"</strong><span>"+reason+"</span>";
+ document.querySelector("#result").innerHTML="<strong>"+(committed?"ALLOW · COMMITTED":"REFUSE · NOT COMMITTED")+"</strong><span>"+reason+"</span>";
  document.querySelector("#trace").innerHTML=[
  ["T0","VALID → ACTIVE"],
  ["Capability","attempt-A · exact payload"],
