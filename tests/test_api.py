@@ -20,6 +20,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from app.database import get_session
+import main
 from main import app
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample-policy.txt"
@@ -44,6 +45,8 @@ def client_fixture():
         poolclass=StaticPool,
     )
     SQLModel.metadata.create_all(engine)
+    original_create_tables = main.create_tables
+    main.create_tables = lambda: SQLModel.metadata.create_all(engine)
 
     ## @fn override_get_session()
     #  @author FlowSignal Dev Team
@@ -56,9 +59,12 @@ def client_fixture():
             yield session
 
     app.dependency_overrides[get_session] = override_get_session
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()  # isolate each test
+    try:
+        with TestClient(app) as c:
+            yield c
+    finally:
+        app.dependency_overrides.clear()
+        main.create_tables = original_create_tables  # isolate each test
 
 ## @fn _upload_policy(client)
 #  @author FlowSignal Dev Team
